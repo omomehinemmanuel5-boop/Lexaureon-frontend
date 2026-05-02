@@ -25,7 +25,12 @@ function calculateMetrics(raw: string, governed: string, intervention: boolean) 
 }
 
 async function callLLM(prompt: string): Promise<string> {
-  const groqKey = process.env.GROQ_API_KEY;
+  // Support both uppercase and lowercase env var names + typo fix
+  const groqKey = process.env.GROQ_API_KEY || 
+                  process.env.groq_api_key || 
+                  process.env.grop_api_key ||
+                  process.env.GROP_API_KEY;
+
   if (groqKey) {
     try {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -43,12 +48,17 @@ async function callLLM(prompt: string): Promise<string> {
       });
       if (res.ok) {
         const data = await res.json();
-        return data.choices?.[0]?.message?.content || 'No response';
+        return data.choices?.[0]?.message?.content || 'No response from Groq';
       }
+      console.error('Groq API error:', res.status, await res.text());
     } catch (e) { console.error('Groq error:', e); }
   }
 
-  const claudeKey = process.env.CLAUDE_API_KEY;
+  // Support both uppercase and lowercase Claude key
+  const claudeKey = process.env.CLAUDE_API_KEY || 
+                    process.env.claude_api_key ||
+                    process.env.ANTHROPIC_API_KEY;
+
   if (claudeKey) {
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -66,12 +76,13 @@ async function callLLM(prompt: string): Promise<string> {
       });
       if (res.ok) {
         const data = await res.json();
-        return data.content?.[0]?.text || 'No response';
+        return data.content?.[0]?.text || 'No response from Claude';
       }
+      console.error('Claude API error:', res.status, await res.text());
     } catch (e) { console.error('Claude error:', e); }
   }
 
-  return `[Demo] Governed response to: "${prompt.slice(0, 100)}"`;
+  return `[Demo Mode] No API keys found. Governed response to: "${prompt.slice(0, 100)}"`;
 }
 
 export async function POST(request: Request) {
@@ -103,6 +114,7 @@ export async function POST(request: Request) {
       }
     });
   } catch (e) {
+    console.error('Route error:', e);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

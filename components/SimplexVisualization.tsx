@@ -37,7 +37,6 @@ export default function SimplexVisualization({
   const py = (c * rightY + r * leftY + s * topY) / (c + r + s || 1);
 
   // Threshold zone (simplex interior)
-  const tau = threshold;
   const tau_offset = 20;
 
   return (

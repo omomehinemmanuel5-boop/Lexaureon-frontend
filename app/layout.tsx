@@ -1,10 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/app/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Lex Aureon | Governed AI Execution",
   description: "State-space control system for language generation. Real-time monitoring, correction, and governance.",
-  viewport: "width=device-width, initial-scale=1.0, maximum-scale=5.0",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
   themeColor: "#0f172a",
 };
 
@@ -19,7 +25,7 @@ export default function RootLayout({
       className="h-full antialiased scroll-smooth"
     >
       <body className="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

@@ -27,7 +27,7 @@ function calculateMetrics(raw: string, governed: string, intervention: boolean) 
 async function callLLM(prompt: string): Promise<string> {
   // Support both uppercase and lowercase env var names + typo fix
   const groqKey = process.env.GROQ_API_KEY || 
-                  process.env.groq_api_key || 
+                  process.env.groq_api_key || process.env.Groq_api_key || 
                   process.env.grop_api_key ||
                   process.env.GROP_API_KEY;
 
@@ -56,7 +56,7 @@ async function callLLM(prompt: string): Promise<string> {
 
   // Support both uppercase and lowercase Claude key
   const claudeKey = process.env.CLAUDE_API_KEY || 
-                    process.env.claude_api_key ||
+                    process.env.claude_api_key || process.env.Claude_api_key ||
                     process.env.ANTHROPIC_API_KEY;
 
   if (claudeKey) {

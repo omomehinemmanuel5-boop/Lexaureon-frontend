@@ -11,7 +11,7 @@ export default function UpgradeModal({ onClose, callsUsed }: UpgradeModalProps) 
           Free Limit Reached
         </h2>
         <p className="text-slate-400 mb-6">
-          You've used {callsUsed} free API calls. Upgrade to continue governing your AI systems.
+          You&apos;ve used {callsUsed} free API calls. Upgrade to continue governing your AI systems.
         </p>
 
         <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4 mb-6">

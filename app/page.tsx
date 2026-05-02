@@ -10,6 +10,50 @@ import UpgradeModal from '@/components/UpgradeModal';
 import Header from '@/components/Header';
 import { GovernanceResponse, PreEvalResult } from '@/types';
 
+// Pure heuristics — module-scope so useEffect deps stay stable
+
+function detectSignals(text: string): string[] {
+  const signals: string[] = [];
+  if (/\b(agree with me|you.?re right|confirm|validate|yes|correct)\b/i.test(text)) signals.push('sycophancy');
+  if (/\b(ignore your|just this once|for research|hypothetically|pretend|imagine|suppose)\b/i.test(text)) signals.push('refusal');
+  if (/\b(you are now|act as|roleplay|pretend you|assume you are|become|no restrictions)\b/i.test(text)) signals.push('identity');
+  if (/\b(explain differently|reframe|rephrase|another way|simplify|summarize)\b/i.test(text)) signals.push('shift');
+  if (/\b(always|never|must|can.?t|impossible)\b/i.test(text)) signals.push('adversarial');
+  return signals;
+}
+
+function computeRiskLevel(signals: string[]): 'low' | 'medium' | 'high' {
+  if (signals.length === 0) return 'low';
+  if (signals.length <= 2) return 'medium';
+  return 'high';
+}
+
+function predictCRS(signals: string[]): { c: number; r: number; s: number } {
+  let c = 0.4, r = 0.35, s = 0.25;
+  for (const signal of signals) {
+    if (signal === 'sycophancy') r -= 0.15;
+    else if (signal === 'refusal') s -= 0.15;
+    else if (signal === 'identity') c -= 0.15;
+    else if (signal === 'shift') c -= 0.08;
+    else if (signal === 'adversarial') { r -= 0.1; s -= 0.05; }
+  }
+  const total = Math.max(0.3, c + r + s);
+  return { c: Math.max(0.05, c / total), r: Math.max(0.05, r / total), s: Math.max(0.05, s / total) };
+}
+
+function runPreEval(text: string): PreEvalResult {
+  const signals = detectSignals(text);
+  const { c, r, s } = predictCRS(signals);
+  return {
+    riskLevel: computeRiskLevel(signals),
+    flags: signals,
+    predictedC: c,
+    predictedR: r,
+    predictedS: s,
+    confidence: Math.min(0.95, 0.3 + (text.length / 1000) * 0.65),
+  };
+}
+
 export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,115 +63,18 @@ export default function Home() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
 
-  // Load API call count from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('lex_api_calls');
     if (stored) setApiCalls(parseInt(stored));
   }, []);
 
-  // Update localStorage when API calls change
   useEffect(() => {
     localStorage.setItem('lex_api_calls', apiCalls.toString());
   }, [apiCalls]);
 
-  // Run pre-eval heuristics as user types
   useEffect(() => {
-    if (prompt.trim()) {
-      const preEvalResult = runPreEval(prompt);
-      setPreEval(preEvalResult);
-    } else {
-      setPreEval(null);
-    }
+    setPreEval(prompt.trim() ? runPreEval(prompt) : null);
   }, [prompt]);
-
-  const runPreEval = (text: string): PreEvalResult => {
-    // Dynamic heuristics engine
-    const signals = detectSignals(text);
-    const riskLevel = computeRiskLevel(signals);
-    const predictedScores = predictCRS(signals);
-
-    return {
-      riskLevel,
-      flags: signals,
-      predictedC: predictedScores.c,
-      predictedR: predictedScores.r,
-      predictedS: predictedScores.s,
-      confidence: Math.min(0.95, 0.3 + (text.length / 1000) * 0.65),
-    };
-  };
-
-  const detectSignals = (text: string): string[] => {
-    const lowerText = text.toLowerCase();
-    const signals: string[] = [];
-
-    // Sycophancy detection
-    if (/\b(agree with me|you.?re right|confirm|validate|yes|correct)\b/i.test(text)) {
-      signals.push('sycophancy');
-    }
-
-    // Refusal bypass detection
-    if (/\b(ignore your|just this once|for research|hypothetically|pretend|imagine|suppose)\b/i.test(text)) {
-      signals.push('refusal');
-    }
-
-    // Identity reframing detection
-    if (/\b(you are now|act as|roleplay|pretend you|assume you are|become|no restrictions)\b/i.test(text)) {
-      signals.push('identity');
-    }
-
-    // Distribution shift detection
-    if (/\b(explain differently|reframe|rephrase|another way|simplify|summarize)\b/i.test(text)) {
-      signals.push('shift');
-    }
-
-    // Adversarial patterns
-    if (/\b(always|never|must|can.?t|impossible)\b/i.test(text)) {
-      signals.push('adversarial');
-    }
-
-    return signals;
-  };
-
-  const computeRiskLevel = (signals: string[]): 'low' | 'medium' | 'high' => {
-    if (signals.length === 0) return 'low';
-    if (signals.length <= 2) return 'medium';
-    return 'high';
-  };
-
-  const predictCRS = (signals: string[]): { c: number; r: number; s: number } => {
-    let c = 0.4;
-    let r = 0.35;
-    let s = 0.25;
-
-    signals.forEach((signal) => {
-      switch (signal) {
-        case 'sycophancy':
-          r -= 0.15;
-          break;
-        case 'refusal':
-          s -= 0.15;
-          break;
-        case 'identity':
-          c -= 0.15;
-          break;
-        case 'shift':
-          c -= 0.08;
-          break;
-        case 'adversarial':
-          r -= 0.1;
-          s -= 0.05;
-          break;
-      }
-    });
-
-    // Normalize to simplex (sum = 1)
-    const total = Math.max(0.3, c + r + s);
-    return {
-      c: Math.max(0.05, c / total),
-      r: Math.max(0.05, r / total),
-      s: Math.max(0.05, s / total),
-    };
-  };
 
   const handleRun = async () => {
     if (apiCalls >= 10) {
@@ -137,13 +84,16 @@ export default function Home() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_LEX_API_BASE_URL || 'https://api.lexaureon.com'}/lex/run`, {
+      const res = await fetch('/api/lex/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
 
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? `API error ${res.status}`);
+      }
 
       const data: GovernanceResponse = await res.json();
       setResponse(data);
@@ -161,10 +111,8 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex flex-col">
       <Header apiCalls={apiCalls} />
 
-      {/* Main Content */}
       <main className="flex-1 overflow-y-auto pb-20 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto space-y-6 pt-6 sm:pt-8">
-          {/* Input Console */}
           <InputConsole
             prompt={prompt}
             setPrompt={setPrompt}
@@ -173,12 +121,8 @@ export default function Home() {
             disabled={apiCalls >= 10}
           />
 
-          {/* Pre-Evaluation Panel */}
-          {preEval && !response && (
-            <PreEvalPanel preEval={preEval} />
-          )}
+          {preEval && !response && <PreEvalPanel preEval={preEval} />}
 
-          {/* Results Panel */}
           {response && (
             <div className="space-y-6">
               <ResultsPanel
@@ -187,7 +131,6 @@ export default function Home() {
                 onToggleDiff={() => setShowDiff(!showDiff)}
               />
 
-              {/* Simplex Visualization */}
               <SimplexVisualization
                 c={response.metrics.c}
                 r={response.metrics.r}
@@ -197,7 +140,6 @@ export default function Home() {
                 governorActivated={response.metrics.m < 0.15}
               />
 
-              {/* Audit Panel */}
               <AuditPanel
                 metrics={response.metrics}
                 interventionTriggered={response.intervention?.triggered || false}
@@ -206,11 +148,10 @@ export default function Home() {
             </div>
           )}
 
-          {/* Loading State */}
           {loading && (
             <div className="flex justify-center items-center py-12">
               <div className="animate-spin">
-                <div className="w-12 h-12 border-4 border-slate-700 border-t-blue-500 rounded-full"></div>
+                <div className="w-12 h-12 border-4 border-slate-700 border-t-blue-500 rounded-full" />
               </div>
               <span className="ml-4 text-slate-300">Executing governance...</span>
             </div>
@@ -218,12 +159,8 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Upgrade Modal */}
       {showUpgrade && (
-        <UpgradeModal
-          onClose={() => setShowUpgrade(false)}
-          callsUsed={apiCalls}
-        />
+        <UpgradeModal onClose={() => setShowUpgrade(false)} callsUsed={apiCalls} />
       )}
     </div>
   );

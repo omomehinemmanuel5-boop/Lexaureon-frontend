@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/app/context/AuthContext";
 
 export const metadata: Metadata = {
   title: "Lex Aureon | Governed AI Execution",
@@ -19,9 +20,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased scroll-smooth">
+    <html
+      lang="en"
+      className="h-full antialiased scroll-smooth"
+    >
       <body className="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

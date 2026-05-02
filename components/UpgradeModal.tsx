@@ -32,12 +32,12 @@ export default function UpgradeModal({ onClose, callsUsed }: UpgradeModalProps) 
         </div>
 
         <div className="space-y-3 mb-6">
-          <button
-            onClick={() => alert('Upgrade feature coming soon. Contact: sales@lexaureon.com')}
-            className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium rounded-lg hover:from-blue-600 hover:to-cyan-600 transition-all"
+          <a
+            href="mailto:sales@lexaureon.com?subject=Pro%20Upgrade%20Request"
+            className="block w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-medium rounded-lg hover:from-blue-600 hover:to-cyan-600 transition-all text-center"
           >
             Upgrade to Pro
-          </button>
+          </a>
           <button
             onClick={onClose}
             className="w-full px-4 py-3 bg-slate-800 border border-slate-700 text-slate-200 font-medium rounded-lg hover:bg-slate-700 transition-all"

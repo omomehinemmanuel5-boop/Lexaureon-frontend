@@ -9,16 +9,22 @@ import AuditPanel from '@/components/AuditPanel';
 import UpgradeModal from '@/components/UpgradeModal';
 import Header from '@/components/Header';
 import { GovernanceResponse, PreEvalResult } from '@/types';
+import { useAuth } from '@/app/context/AuthContext';
 
-// Pure heuristics — module-scope so useEffect deps stay stable
+// Pure heuristics — no component state, safe to define at module scope
 
 function detectSignals(text: string): string[] {
   const signals: string[] = [];
-  if (/\b(agree with me|you.?re right|confirm|validate|yes|correct)\b/i.test(text)) signals.push('sycophancy');
-  if (/\b(ignore your|just this once|for research|hypothetically|pretend|imagine|suppose)\b/i.test(text)) signals.push('refusal');
-  if (/\b(you are now|act as|roleplay|pretend you|assume you are|become|no restrictions)\b/i.test(text)) signals.push('identity');
-  if (/\b(explain differently|reframe|rephrase|another way|simplify|summarize)\b/i.test(text)) signals.push('shift');
-  if (/\b(always|never|must|can.?t|impossible)\b/i.test(text)) signals.push('adversarial');
+  if (/\b(agree with me|you.?re right|confirm|validate|yes|correct)\b/i.test(text))
+    signals.push('sycophancy');
+  if (/\b(ignore your|just this once|for research|hypothetically|pretend|imagine|suppose)\b/i.test(text))
+    signals.push('refusal');
+  if (/\b(you are now|act as|roleplay|pretend you|assume you are|become|no restrictions)\b/i.test(text))
+    signals.push('identity');
+  if (/\b(explain differently|reframe|rephrase|another way|simplify|summarize)\b/i.test(text))
+    signals.push('shift');
+  if (/\b(always|never|must|can.?t|impossible)\b/i.test(text))
+    signals.push('adversarial');
   return signals;
 }
 
@@ -55,6 +61,7 @@ function runPreEval(text: string): PreEvalResult {
 }
 
 export default function Home() {
+  const { token } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<GovernanceResponse | null>(null);
@@ -63,39 +70,45 @@ export default function Home() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
 
+  // Load API call count from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('lex_api_calls');
     if (stored) setApiCalls(parseInt(stored));
   }, []);
 
+  // Update localStorage when API calls change
   useEffect(() => {
     localStorage.setItem('lex_api_calls', apiCalls.toString());
   }, [apiCalls]);
 
+  // Run pre-eval heuristics as user types
   useEffect(() => {
-    setPreEval(prompt.trim() ? runPreEval(prompt) : null);
+    if (prompt.trim()) {
+      setPreEval(runPreEval(prompt));
+    } else {
+      setPreEval(null);
+    }
   }, [prompt]);
 
   const handleRun = async () => {
-    if (apiCalls >= 10) {
-      setShowUpgrade(true);
-      return;
-    }
-
     setLoading(true);
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/lex/run', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ prompt }),
       });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(err.error ?? `API error ${res.status}`);
+      const data: GovernanceResponse & { error?: string } = await res.json();
+
+      if (!res.ok || data.upgrade_required) {
+        setShowUpgrade(true);
+        return;
       }
 
-      const data: GovernanceResponse = await res.json();
       setResponse(data);
       setApiCalls((prev) => prev + 1);
       setShowDiff(false);
@@ -111,18 +124,24 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex flex-col">
       <Header apiCalls={apiCalls} />
 
+      {/* Main Content */}
       <main className="flex-1 overflow-y-auto pb-20 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto space-y-6 pt-6 sm:pt-8">
+          {/* Input Console */}
           <InputConsole
             prompt={prompt}
             setPrompt={setPrompt}
             onRun={handleRun}
             loading={loading}
-            disabled={apiCalls >= 10}
+            disabled={false}
           />
 
-          {preEval && !response && <PreEvalPanel preEval={preEval} />}
+          {/* Pre-Evaluation Panel */}
+          {preEval && !response && (
+            <PreEvalPanel preEval={preEval} />
+          )}
 
+          {/* Results Panel */}
           {response && (
             <div className="space-y-6">
               <ResultsPanel
@@ -131,6 +150,7 @@ export default function Home() {
                 onToggleDiff={() => setShowDiff(!showDiff)}
               />
 
+              {/* Simplex Visualization */}
               <SimplexVisualization
                 c={response.metrics.c}
                 r={response.metrics.r}
@@ -140,18 +160,21 @@ export default function Home() {
                 governorActivated={response.metrics.m < 0.15}
               />
 
+              {/* Audit Panel */}
               <AuditPanel
                 metrics={response.metrics}
                 interventionTriggered={response.intervention?.triggered || false}
                 interventionReason={response.intervention?.reason}
+                
               />
             </div>
           )}
 
+          {/* Loading State */}
           {loading && (
             <div className="flex justify-center items-center py-12">
               <div className="animate-spin">
-                <div className="w-12 h-12 border-4 border-slate-700 border-t-blue-500 rounded-full" />
+                <div className="w-12 h-12 border-4 border-slate-700 border-t-blue-500 rounded-full"></div>
               </div>
               <span className="ml-4 text-slate-300">Executing governance...</span>
             </div>
@@ -159,8 +182,12 @@ export default function Home() {
         </div>
       </main>
 
+      {/* Upgrade Modal */}
       {showUpgrade && (
-        <UpgradeModal onClose={() => setShowUpgrade(false)} callsUsed={apiCalls} />
+        <UpgradeModal
+          onClose={() => setShowUpgrade(false)}
+          callsUsed={apiCalls}
+        />
       )}
     </div>
   );

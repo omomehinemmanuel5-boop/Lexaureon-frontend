@@ -165,7 +165,7 @@ export default function Home() {
                 metrics={response.metrics}
                 interventionTriggered={response.intervention?.triggered || false}
                 interventionReason={response.intervention?.reason}
-                
+                trustReceipt={response.trust_receipt}
               />
             </div>
           )}

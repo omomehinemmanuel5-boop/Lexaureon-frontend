@@ -1,16 +1,17 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
-import { createContext, useContext, useState, ReactNode } from 'react';
 
-interface AuthContextType {
-  user: null | { email: string; plan: string };
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import type { AuthUser } from '@/types';
+
+interface AuthState {
+  user: AuthUser | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, company: string) => Promise<void>;
+  register: (email: string, password: string, company_name: string) => Promise<void>;
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType>({
+const AuthContext = createContext<AuthState>({
   user: null,
   token: null,
   login: async () => {},
@@ -19,22 +20,59 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<null | { email: string; plan: string }>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
+  useEffect(() => {
+    const stored = localStorage.getItem('lex_token');
+    if (!stored) return;
+    setToken(stored);
+    fetch('/api/auth/me', { headers: { Authorization: `Bearer ${stored}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: AuthUser | null) => {
+        if (data) {
+          setUser(data);
+        } else {
+          localStorage.removeItem('lex_token');
+          setToken(null);
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('lex_token');
+        setToken(null);
+      });
+  }, []);
+
   const login = async (email: string, password: string) => {
-    setUser({ email, plan: 'free' });
-    setToken('demo-token');
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json() as { access_token?: string; user?: AuthUser; error?: string };
+    if (!res.ok) throw new Error(data.error ?? 'Login failed');
+    localStorage.setItem('lex_token', data.access_token!);
+    setToken(data.access_token!);
+    setUser(data.user!);
   };
 
-  const register = async (email: string, password: string, company: string) => {
-    setUser({ email, plan: 'free' });
-    setToken('demo-token');
+  const register = async (email: string, password: string, company_name: string) => {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, company_name }),
+    });
+    const data = await res.json() as { access_token?: string; user?: AuthUser; error?: string };
+    if (!res.ok) throw new Error(data.error ?? 'Registration failed');
+    localStorage.setItem('lex_token', data.access_token!);
+    setToken(data.access_token!);
+    setUser(data.user!);
   };
 
   const logout = () => {
-    setUser(null);
+    localStorage.removeItem('lex_token');
     setToken(null);
+    setUser(null);
   };
 
   return (

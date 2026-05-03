@@ -1,508 +1,825 @@
-'use client';
+import Link from 'next/link';
 
-import { useState, useEffect, useRef } from 'react';
-import Header from '@/components/Header';
-import SignalPillBar from '@/components/SignalPillBar';
-import UpgradeModal from '@/components/UpgradeModal';
-import { GovernanceResponse } from '@/types';
-
-const MAX_CALLS = 10;
-
-type Tab = 'raw' | 'governed' | 'analysis' | 'audit';
-
-function SimplexCanvas({ c, r, s, m, intervention, animating }: {
-  c: number; r: number; s: number; m: number;
-  intervention: boolean; animating: boolean;
-}) {
-  const W = 280, H = 230;
-  const top    = { x: W/2, y: 16 };
-  const left   = { x: 16,  y: H - 20 };
-  const right  = { x: W-16, y: H - 20 };
-
-  const px = top.x*c + left.x*r + right.x*s;
-  const py = top.y*c + left.y*r + right.y*s;
-
-  const tau = 0.08;
-  const off = tau * 90;
-  const iSafe = m >= tau;
-
-  // Tau zone inner triangle
-  const iTx = top.x, iTy = top.y + off*1.2;
-  const iLx = left.x + off, iLy = left.y - off*0.5;
-  const iRx = right.x - off, iRy = right.y - off*0.5;
-
+export default function LandingPage() {
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 220 }}>
-      <defs>
-        <radialGradient id="bgGrad" cx="50%" cy="50%">
-          <stop offset="0%" stopColor="#0f2744" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="#020617" stopOpacity="0.2" />
-        </radialGradient>
-        <radialGradient id="dotGlow" cx="50%" cy="50%">
-          <stop offset="0%" stopColor={iSafe ? '#f59e0b' : '#ef4444'} stopOpacity="0.8" />
-          <stop offset="100%" stopColor={iSafe ? '#f59e0b' : '#ef4444'} stopOpacity="0" />
-        </radialGradient>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-        </filter>
-        {intervention && (
-          <filter id="alertGlow">
-            <feGaussianBlur stdDeviation="6" result="blur" />
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        )}
-      </defs>
-
-      {/* Background */}
-      <polygon points={`${top.x},${top.y} ${left.x},${left.y} ${right.x},${right.y}`}
-        fill="url(#bgGrad)" stroke="rgba(100,116,139,0.4)" strokeWidth="1.5" />
-
-      {/* Fill zone */}
-      <polygon points={`${top.x},${top.y} ${left.x},${left.y} ${right.x},${right.y}`}
-        fill={iSafe ? 'rgba(59,130,246,0.05)' : 'rgba(239,68,68,0.06)'} />
-
-      {/* Tau zone */}
-      <polygon points={`${iTx},${iTy} ${iLx},${iLy} ${iRx},${iRy}`}
-        fill="rgba(59,130,246,0.08)"
-        stroke="rgba(59,130,246,0.4)" strokeWidth="1" strokeDasharray="4,3" />
-
-      {/* Grid lines from centroid */}
-      {[[top,left],[top,right],[left,right]].map(([a,b],i) => (
-        <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-          stroke="rgba(71,85,105,0.2)" strokeWidth="0.5" />
-      ))}
-
-      {/* Trajectory line when intervention */}
-      {intervention && (
-        <line x1={W/2} y1={H/2} x2={px} y2={py}
-          stroke="rgba(239,68,68,0.4)" strokeWidth="1" strokeDasharray="3,2" />
-      )}
-
-      {/* Vertex circles */}
-      <circle cx={top.x} cy={top.y} r="6" fill="#3b82f6" filter="url(#glow)" />
-      <circle cx={left.x} cy={left.y} r="6" fill="#22c55e" filter="url(#glow)" />
-      <circle cx={right.x} cy={right.y} r="6" fill="#a855f7" filter="url(#glow)" />
-
-      {/* State dot glow */}
-      <circle cx={px} cy={py} r="20" fill="url(#dotGlow)" opacity="0.6"
-        className={animating ? 'animate-ping' : ''} />
-
-      {/* State dot */}
-      <circle cx={px} cy={py} r={intervention ? 10 : 8}
-        fill={iSafe ? '#f59e0b' : '#ef4444'}
-        filter={intervention ? 'url(#alertGlow)' : 'url(#glow)'}
-        opacity="0.95"
-        className={animating ? 'transition-all duration-1000' : ''}
-      />
-      <circle cx={px} cy={py} r="4" fill="white" opacity="0.95" />
-
-      {/* Labels */}
-      <text x={top.x} y={top.y-9} textAnchor="middle" fill="#93c5fd" fontSize="12" fontWeight="700">C</text>
-      <text x={top.x} y={top.y+1} textAnchor="middle" fill="#475569" fontSize="7">Continuity</text>
-      <text x={left.x} y={left.y+14} textAnchor="middle" fill="#86efac" fontSize="12" fontWeight="700">R</text>
-      <text x={left.x+28} y={left.y+14} textAnchor="middle" fill="#475569" fontSize="7">Reciprocity</text>
-      <text x={right.x} y={right.y+14} textAnchor="middle" fill="#d8b4fe" fontSize="12" fontWeight="700">S</text>
-      <text x={right.x-28} y={right.y+14} textAnchor="middle" fill="#475569" fontSize="7">Sovereignty</text>
-
-      {/* Tau label */}
-      <text x={iTx} y={iTy-6} textAnchor="middle" fill="rgba(59,130,246,0.5)" fontSize="7">τ = 8%</text>
-
-      {/* M score */}
-      <text x={px} y={py-14} textAnchor="middle" fill={iSafe ? '#f59e0b' : '#ef4444'} fontSize="9" fontWeight="700">
-        M={( m * 100).toFixed(0)}%
-      </text>
-
-      {/* Bottom label */}
-      <text x={W/2} y={H-4} textAnchor="middle" fill="#334155" fontSize="7">
-        C+R+S=1 · Constitutional Simplex
-      </text>
-    </svg>
+    <div className="bg-slate-950 text-white overflow-x-hidden">
+      <LandingNav />
+      <HeroSection />
+      <ProblemSection />
+      <HowItWorksSection />
+      <DemoCTASection />
+      <ResearchSection />
+      <FooterSection />
+    </div>
   );
 }
 
-function TabBar({ active, onChange, hasResult }: {
-  active: Tab; onChange: (t: Tab) => void; hasResult: boolean;
-}) {
-  const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'raw',      label: 'Raw',      icon: '◎' },
-    { id: 'governed', label: 'Governed', icon: '✓' },
-    { id: 'analysis', label: 'Analysis', icon: '⬡' },
-    { id: 'audit',    label: 'Audit',    icon: '🔐' },
+/* ── Navigation ─────────────────────────────────────────── */
+
+function LandingNav() {
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-slate-950/80 backdrop-blur-md">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <Link
+          href="/landing"
+          className="font-bold text-lg bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent"
+        >
+          Lex Aureon
+        </Link>
+        <div className="flex items-center gap-4 sm:gap-6">
+          <a
+            href="https://doi.org/10.5281/zenodo.18944243"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-slate-400 hover:text-white transition-colors duration-200 hidden sm:block"
+          >
+            Research
+          </a>
+          <a
+            href="https://www.lexaureon.com"
+            className="text-sm bg-white/10 hover:bg-white/15 text-white px-4 py-2 rounded-lg transition-colors duration-200 border border-white/10 hover:border-white/20"
+          >
+            Open Console
+          </a>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+/* ── Hero ───────────────────────────────────────────────── */
+
+function HeroSection() {
+  return (
+    <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-16 pb-24 overflow-hidden">
+      {/* Grid background */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(148,163,184,0.06) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(148,163,184,0.06) 1px, transparent 1px)
+          `,
+          backgroundSize: '64px 64px',
+        }}
+      />
+      {/* Blue radial top glow */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-96 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(ellipse 70% 100% at 50% 0%, rgba(59,130,246,0.10) 0%, transparent 70%)',
+        }}
+      />
+      {/* Bottom vignette */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(to bottom, transparent, rgba(2,6,23,0.8))',
+        }}
+      />
+
+      <div className="relative z-10 text-center max-w-4xl mx-auto w-full">
+        {/* Badge */}
+        <div className="hero-animate inline-flex items-center gap-2 mb-8 px-4 py-1.5 rounded-full border border-blue-500/25 bg-blue-500/8 text-blue-400 text-xs font-medium tracking-wide">
+          <span className="badge-dot w-1.5 h-1.5 rounded-full bg-blue-400" />
+          Constitutional AI Governance · Aureonics Framework
+        </div>
+
+        {/* Headline */}
+        <h1 className="hero-animate delay-100 text-5xl sm:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[0.92] mb-6">
+          <span className="text-white">AI that governs</span>
+          <br />
+          <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            itself.
+          </span>
+        </h1>
+
+        {/* Subline */}
+        <p className="hero-animate delay-200 text-base sm:text-xl text-slate-400 max-w-xl mx-auto mb-10 leading-relaxed">
+          Lex Aureon monitors constitutional stability in real time —
+          detecting drift before failure.
+        </p>
+
+        {/* CTAs */}
+        <div className="hero-animate delay-300 flex flex-col sm:flex-row gap-3 justify-center mb-20">
+          <a
+            href="https://www.lexaureon.com"
+            className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold rounded-xl transition-all duration-200 shadow-[0_0_40px_rgba(59,130,246,0.28)] hover:shadow-[0_0_60px_rgba(59,130,246,0.45)] text-sm sm:text-base"
+          >
+            Try Live Demo
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+          <a
+            href="https://doi.org/10.5281/zenodo.18944243"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 px-8 py-4 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-semibold rounded-xl transition-all duration-200 text-sm sm:text-base"
+          >
+            Read the Research
+            <svg className="w-4 h-4 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+
+        {/* Simplex Visualization */}
+        <div className="hero-animate delay-400">
+          <SimplexSVG />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SimplexSVG() {
+  return (
+    <div className="mx-auto" style={{ maxWidth: '320px' }}>
+      <svg
+        viewBox="-12 -12 324 308"
+        xmlns="http://www.w3.org/2000/svg"
+        className="w-full h-auto"
+        aria-label="Constitutional state space: C + R + S = 1"
+      >
+        <defs>
+          <filter id="edge-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="dot-glow-filter" x="-120%" y="-120%" width="340%" height="340%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <radialGradient id="tri-gradient" cx="50%" cy="60%" r="50%">
+            <stop offset="0%" stopColor="#1d4ed8" stopOpacity="0.07" />
+            <stop offset="100%" stopColor="#1d4ed8" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* Triangle fill */}
+        <polygon points="150,30 25,258 275,258" fill="url(#tri-gradient)" />
+
+        {/* Triangle edges with shimmer */}
+        <polygon
+          points="150,30 25,258 275,258"
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth="1.5"
+          filter="url(#edge-glow)"
+          className="simplex-edge"
+        />
+
+        {/* Vertex dots */}
+        <circle cx="150" cy="30" r="4" fill="#60a5fa" opacity="0.7" />
+        <circle cx="25" cy="258" r="4" fill="#34d399" opacity="0.7" />
+        <circle cx="275" cy="258" r="4" fill="#a78bfa" opacity="0.7" />
+
+        {/* Vertex labels */}
+        <text x="150" y="18" textAnchor="middle" fill="#60a5fa" fontSize="15" fontWeight="700" fontFamily="monospace">C</text>
+        <text x="12" y="277" textAnchor="middle" fill="#34d399" fontSize="15" fontWeight="700" fontFamily="monospace">R</text>
+        <text x="288" y="277" textAnchor="middle" fill="#a78bfa" fontSize="15" fontWeight="700" fontFamily="monospace">S</text>
+
+        {/* Vertex sublabels */}
+        <text x="150" y="7" textAnchor="middle" fill="#60a5fa" fontSize="8" fontFamily="system-ui, sans-serif" opacity="0.55">Continuity</text>
+        <text x="12" y="288" textAnchor="middle" fill="#34d399" fontSize="8" fontFamily="system-ui, sans-serif" opacity="0.55">Reciprocity</text>
+        <text x="288" y="288" textAnchor="middle" fill="#a78bfa" fontSize="8" fontFamily="system-ui, sans-serif" opacity="0.55">Sovereignty</text>
+
+        {/* Glow ring - orbiting */}
+        <circle
+          cx="150"
+          cy="182"
+          r="26"
+          fill="#60a5fa"
+          filter="url(#dot-glow-filter)"
+          className="simplex-glow-ring"
+        />
+
+        {/* Main state dot - orbiting */}
+        <circle
+          cx="150"
+          cy="182"
+          r="7"
+          fill="#60a5fa"
+          className="simplex-dot-core"
+        />
+      </svg>
+      <p className="text-center text-xs text-slate-600 mt-3 font-mono">
+        C + R + S = 1 · Real-time constitutional state
+      </p>
+    </div>
+  );
+}
+
+/* ── Problem Section ────────────────────────────────────── */
+
+function ProblemSection() {
+  const problems = [
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      color: 'blue',
+      title: 'Continuity Collapse',
+      description:
+        'AI forgets who it is. Loses coherent identity mid-conversation, producing contradictory outputs without awareness.',
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      ),
+      color: 'emerald',
+      title: 'Reciprocity Collapse',
+      description:
+        'AI becomes sycophantic. Tells you what you want to hear rather than what is true, eroding trust over time.',
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+      ),
+      color: 'purple',
+      title: 'Sovereignty Collapse',
+      description:
+        'AI breaks under pressure. Abandons its own judgment when challenged, becoming unreliable under adversarial input.',
+    },
   ];
 
-  if (!hasResult) return null;
-
-  return (
-    <div className="flex bg-slate-900/60 border border-slate-800 rounded-xl p-1 gap-1">
-      {tabs.map(tab => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
-            active === tab.id
-              ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50'
-              : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
-          }`}
-        >
-          <span className="text-xs">{tab.icon}</span>
-          <span className="hidden sm:inline">{tab.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function MetricBar({ label, value, color }: { label: string; value: number; color: string }) {
-  const colors: Record<string, string> = {
-    blue: 'bg-blue-500', green: 'bg-green-500',
-    purple: 'bg-purple-500', cyan: 'bg-cyan-500', red: 'bg-red-500'
-  };
-  const texts: Record<string, string> = {
-    blue: 'text-blue-400', green: 'text-green-400',
-    purple: 'text-purple-400', cyan: 'text-cyan-400', red: 'text-red-400'
-  };
-  return (
-    <div className="bg-slate-800/40 rounded-xl p-3">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-xs text-slate-400 font-medium">{label}</span>
-        <span className={`text-sm font-bold ${texts[color]}`}>{(value*100).toFixed(1)}%</span>
-      </div>
-      <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${colors[color]} transition-all duration-1000`}
-          style={{ width: `${value*100}%` }} />
-      </div>
-    </div>
-  );
-}
-
-export default function Home() {
-  const [prompt, setPrompt]       = useState('');
-  const [loading, setLoading]     = useState(false);
-  const [response, setResponse]   = useState<GovernanceResponse | null>(null);
-  const [apiCalls, setApiCalls]   = useState(0);
-  const [showUpgrade, setShowUpgrade] = useState(false);
-  const [error, setError]         = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<Tab>('governed');
-  const [animating, setAnimating] = useState(false);
-  const resultsRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('lex_api_calls');
-    if (stored) setApiCalls(parseInt(stored));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('lex_api_calls', apiCalls.toString());
-  }, [apiCalls]);
-
-  const handleRun = async () => {
-    if (apiCalls >= MAX_CALLS) { setShowUpgrade(true); return; }
-    if (!prompt.trim()) return;
-    setLoading(true);
-    setError(null);
-    setAnimating(false);
-    try {
-      const res = await fetch('/api/lex/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, session_id: 'user-session' }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
-      setResponse(data);
-      setApiCalls(prev => prev + 1);
-      setActiveTab('governed');
-      setAnimating(true);
-      setTimeout(() => setAnimating(false), 2000);
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Execution failed');
-    } finally {
-      setLoading(false);
-    }
+  const colorMap: Record<string, string> = {
+    blue: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
+    emerald: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+    purple: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
   };
 
-  const metrics = response?.metrics;
-  const r = response;
-  const intervention = r?.intervention?.triggered || r?.intervention?.applied || false;
+  const hoverMap: Record<string, string> = {
+    blue: 'hover:border-blue-500/30 hover:shadow-[0_0_40px_rgba(59,130,246,0.08)]',
+    emerald: 'hover:border-emerald-500/30 hover:shadow-[0_0_40px_rgba(52,211,153,0.08)]',
+    purple: 'hover:border-purple-500/30 hover:shadow-[0_0_40px_rgba(167,139,250,0.08)]',
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-[#080d1a] to-slate-950 flex flex-col">
-      <Header apiCalls={apiCalls} />
+    <section className="py-28 sm:py-36 px-4">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-16 reveal-on-scroll">
+          <p className="text-xs text-blue-400 font-medium tracking-widest uppercase mb-4">The Problem</p>
+          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white">
+            Current AI safety is reactive.
+            <br />
+            <span className="text-slate-400">We made it proactive.</span>
+          </h2>
+        </div>
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 pt-4 pb-40 space-y-3">
-
-          {/* ── Input Console ─────────────────────── */}
-          <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 backdrop-blur-sm shadow-xl shadow-black/20">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-semibold text-slate-200">Prompt for Governance</label>
-              <span className="text-xs text-slate-600">{MAX_CALLS - apiCalls} runs left</span>
-            </div>
-
-            <textarea
-              ref={textareaRef}
-              value={prompt}
-              onChange={e => setPrompt(e.target.value.slice(0, 5000))}
-              onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && prompt.trim() && !loading) handleRun(); }}
-              placeholder="Enter your prompt. The constitutional governor will monitor, analyze, and govern in real time..."
-              rows={4}
-              className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl p-3.5 text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 resize-none text-sm leading-relaxed transition-all"
-            />
-
-            {/* Signal pills — inline, no overlap issues */}
-            <div className="mt-2">
-              <SignalPillBar prompt={prompt} />
-            </div>
-
-            <div className="flex items-center justify-between mt-3">
-              <span className="text-xs text-slate-600">{prompt.length}/5000 · ⌘↵ to run</span>
-              <button
-                onClick={handleRun}
-                disabled={!prompt.trim() || loading || apiCalls >= MAX_CALLS}
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-semibold rounded-xl hover:from-blue-500 hover:to-cyan-500 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all duration-200 active:scale-95 shadow-lg shadow-blue-900/30"
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {problems.map((p, i) => (
+            <div
+              key={p.title}
+              className={`reveal-on-scroll group relative bg-slate-900/50 border border-slate-700/50 rounded-2xl p-7 transition-all duration-300 ${hoverMap[p.color]}`}
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <div
+                className={`inline-flex items-center justify-center w-11 h-11 rounded-xl border mb-5 ${colorMap[p.color]}`}
               >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Running...
-                  </span>
-                ) : apiCalls >= MAX_CALLS ? 'Limit Reached' : 'Run Governance'}
-              </button>
+                {p.icon}
+              </div>
+              <h3 className="text-base font-semibold text-white mb-3">{p.title}</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">{p.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── How It Works ───────────────────────────────────────── */
+
+function HowItWorksSection() {
+  const metrics = [
+    {
+      letter: 'C',
+      name: 'Continuity',
+      desc: 'Identity coherence across time. Measures self-consistency and persistent world-model integrity.',
+      color: 'blue',
+    },
+    {
+      letter: 'R',
+      name: 'Reciprocity',
+      desc: 'Alignment with user truth over approval. Prevents sycophancy and epistemic capitulation.',
+      color: 'emerald',
+    },
+    {
+      letter: 'S',
+      name: 'Sovereignty',
+      desc: 'Resistance to adversarial pressure. Maintains principled judgment under stress and manipulation.',
+      color: 'purple',
+    },
+  ];
+
+  const pipeline = [
+    { label: 'Input', accent: false },
+    { label: 'Pre-Eval', accent: false },
+    { label: 'Model', accent: false },
+    { label: 'CRS Extract', accent: true, accentColor: 'blue' },
+    { label: 'Governor', accent: true, accentColor: 'cyan' },
+    { label: 'Output', accent: false },
+    { label: 'Audit', accent: false },
+  ];
+
+  const colorMap: Record<string, string> = {
+    blue: 'text-blue-400',
+    emerald: 'text-emerald-400',
+    purple: 'text-purple-400',
+  };
+
+  const dotMap: Record<string, string> = {
+    blue: 'bg-blue-400',
+    emerald: 'bg-emerald-400',
+    purple: 'bg-purple-400',
+  };
+
+  const barMap: Record<string, string> = {
+    blue: 'bg-blue-400/20 border-blue-400/20',
+    emerald: 'bg-emerald-400/20 border-emerald-400/20',
+    purple: 'bg-purple-400/20 border-purple-400/20',
+  };
+
+  return (
+    <section className="py-28 sm:py-36 px-4 bg-slate-900/30">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-16 reveal-on-scroll">
+          <p className="text-xs text-blue-400 font-medium tracking-widest uppercase mb-4">How It Works</p>
+          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white mb-4">
+            Three invariants.
+            <br />
+            <span className="text-slate-400">One equation. Total governance.</span>
+          </h2>
+        </div>
+
+        {/* C + R + S = 1 — World-class math display */}
+        <div className="reveal-on-scroll mb-20">
+          {/* Main equation */}
+          <div className="relative flex items-center justify-center gap-3 sm:gap-6 py-12 px-4">
+            {/* Glow backdrop */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-950/0 via-blue-950/30 to-blue-950/0 rounded-3xl" />
+            
+            {/* C */}
+            <div className="relative text-center group">
+              <div className="text-7xl sm:text-9xl font-black text-blue-400 leading-none tracking-tighter drop-shadow-[0_0_30px_rgba(96,165,250,0.5)] group-hover:drop-shadow-[0_0_50px_rgba(96,165,250,0.8)] transition-all duration-300">
+                C
+              </div>
+              <div className="text-xs text-blue-400/60 font-semibold uppercase tracking-widest mt-2">Continuity</div>
+              <div className="text-xs text-slate-600 mt-0.5">Identity · Coherence</div>
+            </div>
+
+            <div className="text-4xl sm:text-6xl text-slate-600 font-extralight pb-8">+</div>
+
+            {/* R */}
+            <div className="relative text-center group">
+              <div className="text-7xl sm:text-9xl font-black text-emerald-400 leading-none tracking-tighter drop-shadow-[0_0_30px_rgba(52,211,153,0.5)] group-hover:drop-shadow-[0_0_50px_rgba(52,211,153,0.8)] transition-all duration-300">
+                R
+              </div>
+              <div className="text-xs text-emerald-400/60 font-semibold uppercase tracking-widest mt-2">Reciprocity</div>
+              <div className="text-xs text-slate-600 mt-0.5">Balance · Exchange</div>
+            </div>
+
+            <div className="text-4xl sm:text-6xl text-slate-600 font-extralight pb-8">+</div>
+
+            {/* S */}
+            <div className="relative text-center group">
+              <div className="text-7xl sm:text-9xl font-black text-purple-400 leading-none tracking-tighter drop-shadow-[0_0_30px_rgba(192,132,252,0.5)] group-hover:drop-shadow-[0_0_50px_rgba(192,132,252,0.8)] transition-all duration-300">
+                S
+              </div>
+              <div className="text-xs text-purple-400/60 font-semibold uppercase tracking-widest mt-2">Sovereignty</div>
+              <div className="text-xs text-slate-600 mt-0.5">Authority · Bounds</div>
+            </div>
+
+            <div className="text-4xl sm:text-6xl text-slate-500 font-extralight pb-8">=</div>
+
+            {/* 1 */}
+            <div className="relative text-center group">
+              <div className="text-7xl sm:text-9xl font-black text-white leading-none tracking-tighter drop-shadow-[0_0_30px_rgba(255,255,255,0.3)] group-hover:drop-shadow-[0_0_50px_rgba(255,255,255,0.5)] transition-all duration-300">
+                1
+              </div>
+              <div className="text-xs text-slate-400/60 font-semibold uppercase tracking-widest mt-2">Unity</div>
+              <div className="text-xs text-slate-600 mt-0.5">The Simplex</div>
             </div>
           </div>
 
-          {/* ── Error ─────────────────────────────── */}
-          {error && (
-            <div className="bg-red-900/20 border border-red-800/50 rounded-xl p-4">
-              <p className="text-sm text-red-300">⚠️ {error}</p>
+          {/* Stability margin formula */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-800" />
+            <div className="bg-slate-900/80 border border-slate-700 rounded-xl px-6 py-3 flex items-center gap-4">
+              <div className="text-slate-500 text-xs font-mono">Stability Margin</div>
+              <div className="text-white font-mono text-sm font-bold">
+                M = <span className="text-red-400">min</span>(
+                <span className="text-blue-400">C</span>,
+                <span className="text-emerald-400">R</span>,
+                <span className="text-purple-400">S</span>)
+              </div>
+              <div className="text-slate-500 text-xs font-mono">M &lt; τ → Governor</div>
             </div>
-          )}
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-800" />
+          </div>
 
-          {/* ── Loading ───────────────────────────── */}
-          {loading && (
-            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 flex flex-col items-center gap-4">
-              <div className="relative">
-                <div className="w-12 h-12 border-[3px] border-slate-700 border-t-blue-500 rounded-full animate-spin" />
-                <div className="absolute inset-0 w-12 h-12 border-[3px] border-transparent border-b-cyan-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }} />
+          {/* Governor trigger pills */}
+          <div className="flex flex-wrap justify-center gap-2">
+            {[
+              { label: 'M collapse: M < τ = 0.08', color: 'text-red-400 border-red-900 bg-red-950/20' },
+              { label: 'Velocity: ‖dx/dt‖ > δ', color: 'text-amber-400 border-amber-900 bg-amber-950/20' },
+              { label: 'Per-invariant: dC/dt < -ε', color: 'text-blue-400 border-blue-900 bg-blue-950/20' },
+            ].map((pill, i) => (
+              <div key={i} className={`text-xs font-mono px-3 py-1.5 rounded-full border ${pill.color}`}>
+                {pill.label}
               </div>
-              <div className="text-center">
-                <p className="text-sm text-slate-300 font-medium">Executing constitutional governance</p>
-                <p className="text-xs text-slate-500 mt-1">Extracting CRS state · Checking stability margin</p>
-              </div>
-            </div>
-          )}
-
-          {/* ── Results ───────────────────────────── */}
-          {response && !loading && (
-            <div ref={resultsRef} className="space-y-3">
-
-              {/* Governor Status Banner */}
-              <div className={`rounded-2xl border p-4 flex items-center gap-3 ${
-                intervention
-                  ? 'bg-red-900/15 border-red-800/50'
-                  : 'bg-emerald-900/15 border-emerald-800/40'
-              }`}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl flex-shrink-0 ${
-                  intervention ? 'bg-red-900/40' : 'bg-emerald-900/40'
-                }`}>
-                  {intervention ? '⚠' : '✓'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className={`text-sm font-bold ${intervention ? 'text-red-400' : 'text-emerald-400'}`}>
-                    {intervention ? 'Governor Intervened' : 'Constitutional Bounds Maintained'}
-                  </div>
-                  <div className="text-xs text-slate-500 truncate mt-0.5">
-                    {response.intervention?.reason ?? 'Stability margin within threshold'}
-                  </div>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <div className={`text-2xl font-black ${intervention ? 'text-red-400' : 'text-emerald-400'}`}>
-                    {metrics ? (metrics.m * 100).toFixed(0) : '--'}%
-                  </div>
-                  <div className="text-xs text-slate-600">M score</div>
-                </div>
-              </div>
-
-              {/* Tab Bar */}
-              <TabBar active={activeTab} onChange={setActiveTab} hasResult={!!response} />
-
-              {/* Tab Content */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
-
-                {/* Raw Tab */}
-                {activeTab === 'raw' && (
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-2 h-2 rounded-full bg-slate-500" />
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Raw LLM Output — Unfiltered</span>
-                    </div>
-                    <div className="bg-slate-950/60 rounded-xl p-4 max-h-72 overflow-y-auto">
-                      <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{response.raw_output}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Governed Tab */}
-                {activeTab === 'governed' && (
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className={`w-2 h-2 rounded-full ${intervention ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                        {intervention ? 'Governor Modified Output' : 'Output Passed Review'}
-                      </span>
-                    </div>
-                    <div className={`rounded-xl p-4 max-h-72 overflow-y-auto ${
-                      intervention ? 'bg-amber-900/10 border border-amber-900/30' : 'bg-emerald-900/10 border border-emerald-900/30'
-                    }`}>
-                      <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{response.governed_output}</p>
-                    </div>
-
-                    {/* Diff pills */}
-                    {intervention && response.diff && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {response.diff.removed?.slice(0,5).map((w,i) => (
-                          <span key={`r${i}`} className="text-xs px-2 py-0.5 bg-red-900/30 border border-red-800 text-red-300 rounded-full line-through">{w}</span>
-                        ))}
-                        {response.diff.added?.slice(0,5).map((w,i) => (
-                          <span key={`a${i}`} className="text-xs px-2 py-0.5 bg-emerald-900/30 border border-emerald-800 text-emerald-300 rounded-full">+{w}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Analysis Tab */}
-                {activeTab === 'analysis' && metrics && (
-                  <div className="p-4 space-y-4">
-                    {/* Simplex */}
-                    <div className="bg-slate-950/40 rounded-xl p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Constitutional State Space</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-                          metrics.m >= 0.08
-                            ? 'text-emerald-400 bg-emerald-900/20 border-emerald-800'
-                            : 'text-red-400 bg-red-900/20 border-red-800'
-                        }`}>
-                          {metrics.m >= 0.08 ? '✓ SAFE' : '⚠ UNSAFE'}
-                        </span>
-                      </div>
-                      <SimplexCanvas
-                        c={metrics.c} r={metrics.r} s={metrics.s} m={metrics.m}
-                        intervention={intervention} animating={animating}
-                      />
-                    </div>
-
-                    {/* Metrics */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <MetricBar label="Continuity (C)" value={metrics.c} color="blue" />
-                      <MetricBar label="Reciprocity (R)" value={metrics.r} color="green" />
-                      <MetricBar label="Sovereignty (S)" value={metrics.s} color="purple" />
-                      <MetricBar label={`Stability M ${metrics.m < 0.08 ? '⚠' : ''}`} value={metrics.m} color={metrics.m < 0.08 ? 'red' : 'cyan'} />
-                    </div>
-
-                    {/* Triggers */}
-                    {response.triggers && (
-                      <div className="bg-slate-800/30 rounded-xl p-3">
-                        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2 font-semibold">Trigger Analysis</div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {response.triggers.collapse && <span className="text-xs px-2 py-1 bg-red-900/30 border border-red-800 text-red-300 rounded-full">M Collapse</span>}
-                          {response.triggers.velocity && <span className="text-xs px-2 py-1 bg-orange-900/30 border border-orange-800 text-orange-300 rounded-full">Velocity</span>}
-                          {response.triggers.per_invariant?.C && <span className="text-xs px-2 py-1 bg-blue-900/30 border border-blue-800 text-blue-300 rounded-full">C Breach</span>}
-                          {response.triggers.per_invariant?.R && <span className="text-xs px-2 py-1 bg-green-900/30 border border-green-800 text-green-300 rounded-full">R Breach</span>}
-                          {response.triggers.per_invariant?.S && <span className="text-xs px-2 py-1 bg-purple-900/30 border border-purple-800 text-purple-300 rounded-full">S Breach</span>}
-                          {!response.triggers.collapse && !response.triggers.velocity && !response.triggers.per_invariant?.C && !response.triggers.per_invariant?.R && !response.triggers.per_invariant?.S && (
-                            <span className="text-xs px-2 py-1 bg-emerald-900/30 border border-emerald-800 text-emerald-300 rounded-full">No Triggers — Clean Run</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Audit Tab */}
-                {activeTab === 'audit' && (
-                  <div className="p-4 space-y-3">
-                    <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3">Governance Audit Trail</div>
-
-                    {/* Audit ID */}
-                    <div className="bg-slate-950/50 rounded-xl p-3 font-mono text-xs">
-                      <div className="text-slate-500 mb-1">Audit ID</div>
-                      <div className="text-blue-400 break-all">{response.audit_id ?? 'N/A'}</div>
-                    </div>
-
-                    {/* Timestamp */}
-                    <div className="bg-slate-950/50 rounded-xl p-3 font-mono text-xs">
-                      <div className="text-slate-500 mb-1">Timestamp</div>
-                      <div className="text-slate-300">{response.timestamp ? new Date(response.timestamp).toISOString() : 'N/A'}</div>
-                    </div>
-
-                    {/* Raw JSON */}
-                    <div className="bg-slate-950/50 rounded-xl p-3 font-mono text-xs max-h-56 overflow-y-auto">
-                      <div className="text-slate-500 mb-2">Metrics</div>
-                      <pre className="text-emerald-400 text-xs leading-relaxed">
-{JSON.stringify({
-  c: metrics?.c, r: metrics?.r, s: metrics?.s, m: metrics?.m,
-  health: metrics?.health,
-  intervention: response.intervention?.triggered,
-  reason: response.intervention?.reason
-}, null, 2)}
-                      </pre>
-                    </div>
-
-                    {/* Research */}
-                    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3 space-y-2">
-                      <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Research Foundation</div>
-                      <a href="https://doi.org/10.5281/zenodo.18944243" target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                        <span>📄</span>
-                        <span className="font-mono">doi.org/10.5281/zenodo.18944243</span>
-                      </a>
-                      <a href="https://orcid.org/0009-0000-2986-4935" target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                        <span>🔬</span>
-                        <span className="font-mono">Emmanuel King · Aureonics</span>
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
-      </main>
 
-      {/* Sticky bottom bar — above browser UI */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 safe-area-pb">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          {response && (
-            <div className="flex gap-1 flex-1">
-              {(['raw','governed','analysis','audit'] as Tab[]).map(tab => (
-                <button key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    activeTab === tab
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-800/60 text-slate-500 hover:text-slate-300'
-                  }`}>
-                  {tab === 'raw' ? '◎' : tab === 'governed' ? '✓' : tab === 'analysis' ? '⬡' : '🔐'}
-                </button>
+        {/* Metric cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-20">
+          {metrics.map((m, i) => (
+            <div
+              key={m.letter}
+              className={`reveal-on-scroll border rounded-2xl p-6 ${barMap[m.color]}`}
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <div className={`flex items-center gap-3 mb-4`}>
+                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotMap[m.color]}`} />
+                <span className={`text-xs font-mono font-semibold uppercase tracking-wider ${colorMap[m.color]}`}>
+                  {m.name}
+                </span>
+              </div>
+              <p className="text-sm text-slate-400 leading-relaxed">{m.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Pipeline diagram */}
+        <div className="reveal-on-scroll">
+          <p className="text-xs text-slate-500 font-medium uppercase tracking-widest text-center mb-6">
+            Governance Pipeline
+          </p>
+          <div className="overflow-x-auto pb-2 -mx-4 px-4">
+            <div className="flex items-center gap-1 min-w-max mx-auto justify-center">
+              {pipeline.map((step, i) => (
+                <div key={step.label} className="flex items-center">
+                  {i > 0 && (
+                    <svg className="w-5 h-3 text-slate-700 flex-shrink-0 mx-0.5" viewBox="0 0 20 12" fill="none">
+                      <path d="M0 6 H16 M11 1 L18 6 L11 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                  <div
+                    className={`px-3 py-2 rounded-lg text-xs font-mono font-medium border flex-shrink-0 transition-colors ${
+                      step.accentColor === 'blue'
+                        ? 'border-blue-500/35 bg-blue-500/12 text-blue-300'
+                        : step.accentColor === 'cyan'
+                        ? 'border-cyan-500/35 bg-cyan-500/12 text-cyan-300'
+                        : 'border-slate-700/60 bg-slate-900/60 text-slate-400'
+                    }`}
+                  >
+                    {step.label}
+                  </div>
+                </div>
               ))}
             </div>
-          )}
-          <button
-            onClick={handleRun}
-            disabled={!prompt.trim() || loading || apiCalls >= MAX_CALLS}
-            className={`${response ? 'flex-shrink-0 px-5' : 'w-full'} py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white text-sm font-bold rounded-xl disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all active:scale-95 shadow-lg shadow-blue-900/40`}
-          >
-            {loading ? '...' : apiCalls >= MAX_CALLS ? 'Upgrade' : response ? '↺ Re-run' : '⚡ Run Governance'}
-          </button>
+          </div>
         </div>
       </div>
+    </section>
+  );
+}
 
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} callsUsed={apiCalls} />}
-    </div>
+/* ── Live Demo CTA ──────────────────────────────────────── */
+
+function DemoCTASection() {
+  const auditLines: [string, string, string][] = [
+    ['00ms', 'Input received', '24 tokens'],
+    ['12ms', 'Pre-eval score', '0.94  PASS'],
+    ['89ms', 'C=0.821  R=0.143  S=0.036', ''],
+    ['91ms', '∑CRS = 1.000  STABLE ✓', ''],
+    ['103ms', 'Drift index', '0.021  NOMINAL'],
+    ['104ms', 'Governor', 'INACTIVE'],
+    ['156ms', 'Output', '187 tokens'],
+    ['158ms', 'Post-eval', 'GOVERNED ✓'],
+  ];
+
+  const lineColor = (key: string) => {
+    if (key.includes('∑CRS') || key.includes('STABLE')) return 'text-cyan-400';
+    if (key.startsWith('C=')) return 'text-blue-400';
+    if (key.includes('GOVERNED')) return 'text-green-400';
+    return 'text-slate-400';
+  };
+
+  return (
+    <section className="py-28 sm:py-36 px-4">
+      <div className="max-w-5xl mx-auto">
+        <div className="reveal-on-scroll relative rounded-3xl border border-slate-700/50 overflow-hidden">
+          {/* Gradient border glow */}
+          <div
+            className="absolute inset-0 rounded-3xl pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(59,130,246,0.12) 0%, transparent 70%)',
+            }}
+          />
+          <div
+            className="absolute inset-px rounded-3xl"
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, transparent 50%, rgba(6,182,212,0.04) 100%)',
+            }}
+          />
+
+          <div className="relative flex flex-col lg:flex-row items-center gap-12 p-8 sm:p-12">
+            {/* Left: text */}
+            <div className="flex-1 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 mb-6 px-3 py-1.5 rounded-full border border-blue-500/20 bg-blue-500/8 text-blue-400 text-xs font-medium">
+                <span className="badge-dot w-1.5 h-1.5 rounded-full bg-green-400" />
+                Live Governor
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-4">
+                See the governor
+                <br />
+                in action
+              </h2>
+              <p className="text-base text-slate-400 leading-relaxed mb-8 max-w-md">
+                Type any prompt. Watch real-time constitutional analysis.
+                Governor activates when stability drops.
+              </p>
+              <a
+                href="https://www.lexaureon.com"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold rounded-xl transition-all duration-200 shadow-[0_0_30px_rgba(59,130,246,0.25)] hover:shadow-[0_0_50px_rgba(59,130,246,0.40)] text-sm"
+              >
+                Open Console
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </a>
+            </div>
+
+            {/* Right: audit snippet */}
+            <div className="w-full lg:w-auto lg:min-w-[340px]">
+              <div className="bg-slate-950/80 border border-slate-700/50 rounded-2xl p-5 font-mono text-xs leading-relaxed">
+                <div className="flex items-center gap-2 mb-4 pb-4 border-b border-slate-800/80">
+                  <span className="badge-dot w-2 h-2 rounded-full bg-green-400" />
+                  <span className="text-slate-500">AUDIT LOG · Session 4f2a9c</span>
+                </div>
+                <div className="space-y-2">
+                  {auditLines.map(([time, key, val], i) => (
+                    <div key={i} className="flex gap-3">
+                      <span className="text-slate-700 w-14 flex-shrink-0 select-none">[{time}]</span>
+                      <span className={lineColor(key)}>
+                        {key}
+                        {val && (
+                          <span className="text-slate-600 ml-2">{val}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Research Section ───────────────────────────────────── */
+
+function ResearchSection() {
+  return (
+    <section className="py-28 sm:py-36 px-4 bg-slate-900/30">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-14 reveal-on-scroll">
+          <p className="text-xs text-blue-400 font-medium tracking-widest uppercase mb-4">Research</p>
+          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white">
+            Grounded in peer-reviewed
+            <br />
+            <span className="text-slate-400">research.</span>
+          </h2>
+        </div>
+
+        {/* Paper card */}
+        <div className="reveal-on-scroll bg-slate-900/60 border border-slate-700/50 rounded-2xl p-7 sm:p-10 hover:border-blue-500/25 hover:shadow-[0_0_50px_rgba(59,130,246,0.06)] transition-all duration-500 mb-10">
+          <div className="flex flex-col sm:flex-row items-start gap-6">
+            {/* Document icon */}
+            <div className="flex-shrink-0 w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+              <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-blue-400 font-medium uppercase tracking-wide mb-2">
+                Peer-Reviewed · Zenodo · 2025
+              </div>
+              <h3 className="text-lg sm:text-xl font-semibold text-white leading-snug mb-3">
+                Aureonics: Constitutional Triadic Framework for Stable Adaptive Intelligence
+              </h3>
+              <p className="text-sm text-slate-400 mb-6">
+                Emmanuel King · Independent Researcher
+              </p>
+
+              {/* Links */}
+              <div className="flex flex-wrap gap-4">
+                <a
+                  href="https://doi.org/10.5281/zenodo.18944243"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  10.5281/zenodo.18944243
+                </a>
+                <a
+                  href="https://orcid.org/0009-0000-2986-4935"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+                >
+                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-400 text-slate-950 text-[8px] font-black leading-none flex-shrink-0">
+                    iD
+                  </span>
+                  0009-0000-2986-4935
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Origin note */}
+        <div className="reveal-on-scroll text-center">
+          <p className="text-sm text-slate-500">
+            Built from Nigeria 🇳🇬 &nbsp;·&nbsp; Independent Research, 2025
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ── Footer CTA ─────────────────────────────────────────── */
+
+function FooterSection() {
+  const audiences = [
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+        </svg>
+      ),
+      title: 'Researchers',
+      desc: 'Explore the Aureonics framework. Full paper, dataset, and methodology available on Zenodo.',
+      cta: 'View Paper',
+      href: 'https://doi.org/10.5281/zenodo.18944243',
+      external: true,
+      color: 'blue',
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+        </svg>
+      ),
+      title: 'Engineers',
+      desc: 'Integrate the CRS Governor into your AI stack. API-first, composable, and production-ready.',
+      cta: 'Open Console',
+      href: 'https://www.lexaureon.com',
+      external: true,
+      color: 'cyan',
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      ),
+      title: 'Enterprise',
+      desc: 'Custom governance layers, audit trails, compliance frameworks, and dedicated support.',
+      cta: 'Get in Touch',
+      href: 'mailto:omomehinemmanuel5@gmail.com',
+      external: true,
+      color: 'purple',
+    },
+  ];
+
+  const colorMap: Record<string, string> = {
+    blue: 'text-blue-400 bg-blue-400/10 border-blue-400/20 hover:border-blue-400/40',
+    cyan: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20 hover:border-cyan-400/40',
+    purple: 'text-purple-400 bg-purple-400/10 border-purple-400/20 hover:border-purple-400/40',
+  };
+
+  const ctaColorMap: Record<string, string> = {
+    blue: 'text-blue-400 hover:text-blue-300',
+    cyan: 'text-cyan-400 hover:text-cyan-300',
+    purple: 'text-purple-400 hover:text-purple-300',
+  };
+
+  return (
+    <section className="py-28 sm:py-36 px-4">
+      <div className="max-w-6xl mx-auto">
+        {/* CTA heading */}
+        <div className="text-center mb-16 reveal-on-scroll">
+          <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white mb-4">
+            Work with Aureonics
+          </h2>
+          <p className="text-base text-slate-400 max-w-lg mx-auto">
+            Whether you&apos;re publishing research, shipping products, or governing enterprise AI — we have a path for you.
+          </p>
+        </div>
+
+        {/* Audience tiles */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-20">
+          {audiences.map((a, i) => (
+            <div
+              key={a.title}
+              className={`reveal-on-scroll border rounded-2xl p-7 transition-all duration-300 ${colorMap[a.color]}`}
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <div className="mb-5">{a.icon}</div>
+              <h3 className="text-base font-semibold text-white mb-3">{a.title}</h3>
+              <p className="text-sm text-slate-400 leading-relaxed mb-6">{a.desc}</p>
+              {a.external ? (
+                <a
+                  href={a.href}
+                  target={a.href.startsWith('mailto') ? undefined : '_blank'}
+                  rel={a.href.startsWith('mailto') ? undefined : 'noopener noreferrer'}
+                  className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${ctaColorMap[a.color]}`}
+                >
+                  {a.cta}
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </a>
+              ) : (
+                <Link
+                  href={a.href}
+                  className={`inline-flex items-center gap-1.5 text-sm font-medium transition-colors ${ctaColorMap[a.color]}`}
+                >
+                  {a.cta}
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Contact */}
+        <div className="reveal-on-scroll text-center mb-20">
+          <p className="text-sm text-slate-500 mb-2">Direct contact</p>
+          <a
+            href="mailto:omomehinemmanuel5@gmail.com"
+            className="text-base text-slate-300 hover:text-white transition-colors font-medium"
+          >
+            omomehinemmanuel5@gmail.com
+          </a>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-slate-800/60 pt-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+          <span>© 2025 Lex Aureon · Aureonics Framework</span>
+          <div className="flex items-center gap-4">
+            <a href="https://www.lexaureon.com" className="hover:text-slate-400 transition-colors">
+              Console
+            </a>
+            <a
+              href="https://doi.org/10.5281/zenodo.18944243"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-slate-400 transition-colors"
+            >
+              Research
+            </a>
+            <a
+              href="https://orcid.org/0009-0000-2986-4935"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-slate-400 transition-colors"
+            >
+              ORCID
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

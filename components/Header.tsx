@@ -38,7 +38,7 @@ export default function Header({ apiCalls }: { apiCalls: number }) {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/landing"
+              href="/"
               className="text-xs text-slate-400 hover:text-slate-200 transition-colors hidden sm:block"
             >
               About

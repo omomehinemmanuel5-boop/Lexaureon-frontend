@@ -244,3 +244,15 @@ body {
 .sa-d2 { animation-delay: 0.15s; }
 .sa-d3 { animation-delay: 0.25s; }
 .sa-d4 { animation-delay: 0.35s; }
+
+/* ── Mobile: prevent zoom on input focus ── */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Safe area for sticky bottom bar ── */
+.safe-area-pb {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}

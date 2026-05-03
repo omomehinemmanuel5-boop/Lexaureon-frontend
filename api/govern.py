@@ -45,7 +45,13 @@ class SovereignKernel:
         self.delta_v_total_steps = 0
         self.invariance_violations = 0
         self.max_deviation = self.prev_lyapunov_V
-        self.api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("groq_api_key") or ""
+        self.api_key = (
+            os.environ.get("GROQ_API_KEY") or
+            os.environ.get("groq_api_key") or
+            os.environ.get("Groq_api_key") or
+            os.environ.get("GROQ_KEY") or
+            ""
+        )
         self.endpoint = "https://api.groq.com/openai/v1/chat/completions"
         self.model = DEFAULT_MODEL
 

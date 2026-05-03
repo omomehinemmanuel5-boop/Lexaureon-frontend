@@ -179,7 +179,7 @@ export default function Console() {
     setLoading(true); setError(null); setPulse(false);
     setPipelineRunning(true); setPipelineResult(undefined);
     try {
-      const r = await fetch('/api/govern', {
+      const r = await fetch('/api/lex/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, session_id: 'console' }),

@@ -7,6 +7,7 @@ import GovernanceDisplay from '@/components/GovernanceDisplay';
 
 import UpgradeModal from '@/components/UpgradeModal';
 import Header from '@/components/Header';
+import SignalPillBar from '@/components/SignalPillBar';
 import { GovernanceResponse } from '@/types';
 
 const MAX_CALLS = 10;
@@ -63,6 +64,7 @@ export default function Home() {
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-4 py-4 space-y-4 pb-32">
           <InputConsole prompt={prompt} setPrompt={setPrompt} onRun={handleRun} loading={loading} disabled={apiCalls >= MAX_CALLS} />
+          <SignalPillBar prompt={prompt} />
           {error && (
             <div className="bg-red-900/20 border border-red-800 rounded-xl p-4">
               <p className="text-sm text-red-300">⚠️ {error}</p>

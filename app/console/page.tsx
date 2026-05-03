@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import SignalPillBar from '@/components/SignalPillBar';
+
 import UpgradeModal from '@/components/UpgradeModal';
 import HealthBand from '@/components/HealthBand';
 import { GovernanceResponse } from '@/types';
@@ -150,6 +151,16 @@ export default function Console() {
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Developer reset via ?dev_reset=true
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('dev_reset') === 'true') {
+        localStorage.removeItem('lex_api_calls');
+        setApiCalls(0);
+        window.history.replaceState({}, '', '/console');
+        return;
+      }
+    }
     const s = localStorage.getItem('lex_api_calls');
     if (s) setApiCalls(parseInt(s));
   }, []);

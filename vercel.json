@@ -1,7 +1,6 @@
 {
   "functions": {
     "api/govern.py": {
-      "runtime": "python@3.11",
       "maxDuration": 30
     }
   }

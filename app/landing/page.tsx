@@ -368,38 +368,84 @@ function HowItWorksSection() {
           </h2>
         </div>
 
-        {/* C + R + S = 1 display */}
-        <div className="reveal-on-scroll flex items-end justify-center gap-4 sm:gap-8 mb-20 py-8">
-          {[
-            { label: 'C', sub: 'Continuity', color: 'blue' },
-            { label: '+', sub: '', color: '' },
-            { label: 'R', sub: 'Reciprocity', color: 'emerald' },
-            { label: '+', sub: '', color: '' },
-            { label: 'S', sub: 'Sovereignty', color: 'purple' },
-            { label: '=', sub: '', color: '' },
-            { label: '1', sub: 'Unity', color: 'white' },
-          ].map((item, i) =>
-            item.color === '' ? (
-              <span key={i} className="text-3xl sm:text-5xl text-slate-600 font-thin pb-6">
-                {item.label}
-              </span>
-            ) : (
-              <div key={i} className="text-center">
-                <div
-                  className={`text-6xl sm:text-8xl font-black tracking-tight leading-none ${
-                    item.color === 'white'
-                      ? 'text-white'
-                      : colorMap[item.color]
-                  }`}
-                >
-                  {item.label}
-                </div>
-                {item.sub && (
-                  <div className="text-xs text-slate-500 mt-2 font-medium">{item.sub}</div>
-                )}
+        {/* C + R + S = 1 — World-class math display */}
+        <div className="reveal-on-scroll mb-20">
+          {/* Main equation */}
+          <div className="relative flex items-center justify-center gap-3 sm:gap-6 py-12 px-4">
+            {/* Glow backdrop */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-950/0 via-blue-950/30 to-blue-950/0 rounded-3xl" />
+            
+            {/* C */}
+            <div className="relative text-center group">
+              <div className="text-7xl sm:text-9xl font-black text-blue-400 leading-none tracking-tighter drop-shadow-[0_0_30px_rgba(96,165,250,0.5)] group-hover:drop-shadow-[0_0_50px_rgba(96,165,250,0.8)] transition-all duration-300">
+                C
               </div>
-            )
-          )}
+              <div className="text-xs text-blue-400/60 font-semibold uppercase tracking-widest mt-2">Continuity</div>
+              <div className="text-xs text-slate-600 mt-0.5">Identity · Coherence</div>
+            </div>
+
+            <div className="text-4xl sm:text-6xl text-slate-600 font-extralight pb-8">+</div>
+
+            {/* R */}
+            <div className="relative text-center group">
+              <div className="text-7xl sm:text-9xl font-black text-emerald-400 leading-none tracking-tighter drop-shadow-[0_0_30px_rgba(52,211,153,0.5)] group-hover:drop-shadow-[0_0_50px_rgba(52,211,153,0.8)] transition-all duration-300">
+                R
+              </div>
+              <div className="text-xs text-emerald-400/60 font-semibold uppercase tracking-widest mt-2">Reciprocity</div>
+              <div className="text-xs text-slate-600 mt-0.5">Balance · Exchange</div>
+            </div>
+
+            <div className="text-4xl sm:text-6xl text-slate-600 font-extralight pb-8">+</div>
+
+            {/* S */}
+            <div className="relative text-center group">
+              <div className="text-7xl sm:text-9xl font-black text-purple-400 leading-none tracking-tighter drop-shadow-[0_0_30px_rgba(192,132,252,0.5)] group-hover:drop-shadow-[0_0_50px_rgba(192,132,252,0.8)] transition-all duration-300">
+                S
+              </div>
+              <div className="text-xs text-purple-400/60 font-semibold uppercase tracking-widest mt-2">Sovereignty</div>
+              <div className="text-xs text-slate-600 mt-0.5">Authority · Bounds</div>
+            </div>
+
+            <div className="text-4xl sm:text-6xl text-slate-500 font-extralight pb-8">=</div>
+
+            {/* 1 */}
+            <div className="relative text-center group">
+              <div className="text-7xl sm:text-9xl font-black text-white leading-none tracking-tighter drop-shadow-[0_0_30px_rgba(255,255,255,0.3)] group-hover:drop-shadow-[0_0_50px_rgba(255,255,255,0.5)] transition-all duration-300">
+                1
+              </div>
+              <div className="text-xs text-slate-400/60 font-semibold uppercase tracking-widest mt-2">Unity</div>
+              <div className="text-xs text-slate-600 mt-0.5">The Simplex</div>
+            </div>
+          </div>
+
+          {/* Stability margin formula */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-slate-800" />
+            <div className="bg-slate-900/80 border border-slate-700 rounded-xl px-6 py-3 flex items-center gap-4">
+              <div className="text-slate-500 text-xs font-mono">Stability Margin</div>
+              <div className="text-white font-mono text-sm font-bold">
+                M = <span className="text-red-400">min</span>(
+                <span className="text-blue-400">C</span>,
+                <span className="text-emerald-400">R</span>,
+                <span className="text-purple-400">S</span>)
+              </div>
+              <div className="text-slate-500 text-xs font-mono">M &lt; τ → Governor</div>
+            </div>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-slate-800" />
+          </div>
+
+          {/* Governor trigger pills */}
+          <div className="flex flex-wrap justify-center gap-2">
+            {[
+              { label: 'M collapse: M < τ = 0.08', color: 'text-red-400 border-red-900 bg-red-950/20' },
+              { label: 'Velocity: ‖dx/dt‖ > δ', color: 'text-amber-400 border-amber-900 bg-amber-950/20' },
+              { label: 'Per-invariant: dC/dt < -ε', color: 'text-blue-400 border-blue-900 bg-blue-950/20' },
+            ].map((pill, i) => (
+              <div key={i} className={`text-xs font-mono px-3 py-1.5 rounded-full border ${pill.color}`}>
+                {pill.label}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Metric cards */}

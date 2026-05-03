@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import AuditFeedClient from '@/app/AuditFeedClient';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -712,6 +713,46 @@ function ResearchSection() {
   );
 }
 
+/* ─── Live Audit Feed Section ────────────────────────────── */
+
+function AuditFeedSection() {
+  return (
+    <section className="py-24 bg-slate-950">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <div className="text-center mb-10 section-animate">
+          <div className="text-xs text-blue-400 font-semibold uppercase tracking-widest mb-3">
+            Live System
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            Governance never stops
+          </h2>
+          <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed">
+            Every prompt processed by Lex Aureon generates a real-time audit event.
+            Cryptographically signed. Mathematically verifiable. Nothing hidden.
+          </p>
+        </div>
+        <div className="section-animate">
+          <AuditFeedClient />
+        </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-4 section-animate">
+          {[
+            { label: 'Lyapunov-stable', icon: '∿' },
+            { label: 'CBF-enforced', icon: '⬡' },
+            { label: 'SHA-256 receipts', icon: '🔐' },
+            { label: 'Per-session isolation', icon: '⚿' },
+          ].map((item) => (
+            <div key={item.label}
+              className="flex items-center gap-2 text-xs text-slate-500 font-mono px-3 py-1.5 bg-slate-900/60 border border-white/5 rounded-full">
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─── Footer ─────────────────────────────────────────────── */
 
 function FooterSection() {
@@ -767,6 +808,7 @@ export default function LandingPage() {
       <HowItWorksSection />
       <FrameworkSection />
       <PricingSection />
+      <AuditFeedSection />
       <ResearchSection />
       <FooterSection />
     </div>

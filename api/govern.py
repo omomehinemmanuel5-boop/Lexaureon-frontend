@@ -400,8 +400,21 @@ class SovereignKernel:
 
 # ── Vercel serverless handler ─────────────────────────────────────────────────
 
-# One kernel instance per serverless function invocation
-_kernel = SovereignKernel()
+# Per-session kernel store for state isolation
+_kernels: dict = {}
+_kernel_lock_available = False
+
+def get_kernel(session_id: str) -> SovereignKernel:
+    """Get or create a kernel for this session."""
+    if session_id not in _kernels:
+        # Limit total kernels to prevent memory bloat
+        if len(_kernels) > 500:
+            # Remove oldest 100 entries
+            oldest = list(_kernels.keys())[:100]
+            for k in oldest:
+                del _kernels[k]
+        _kernels[session_id] = SovereignKernel()
+    return _kernels[session_id]
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -411,6 +424,7 @@ class handler(BaseHTTPRequestHandler):
             data = json.loads(body.decode("utf-8"))
 
             prompt = data.get("prompt", "").strip()
+            session_id = data.get("session_id", "anonymous")
             if not prompt:
                 self._respond(400, {"error": "Prompt required"})
                 return
@@ -418,7 +432,9 @@ class handler(BaseHTTPRequestHandler):
                 self._respond(400, {"error": "Prompt too long"})
                 return
 
-            result = _kernel.run_cycle(prompt)
+            # Get isolated kernel for this session
+            kernel = get_kernel(session_id)
+            result = kernel.run_cycle(prompt)
             self._respond(200, result)
 
         except Exception as e:

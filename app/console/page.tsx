@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import SignalPillBar from '@/components/SignalPillBar';
 import UpgradeModal from '@/components/UpgradeModal';
+import HealthBand from '@/components/HealthBand';
 import { GovernanceResponse } from '@/types';
 
 const MAX_CALLS = 10;

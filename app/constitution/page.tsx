@@ -95,9 +95,7 @@ export default function ConstitutionPage() {
         style={{ background: 'rgba(7,7,13,0.9)' }}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-              <span className="text-white text-xs font-black">L</span>
-            </div>
+            <img src="/logo.png" alt="Lex Aureon" className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-bold text-white text-sm">Lex Aureon</span>
           </Link>
           <div className="flex items-center gap-4">

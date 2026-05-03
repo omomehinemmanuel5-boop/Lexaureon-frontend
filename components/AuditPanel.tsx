@@ -202,7 +202,7 @@ export default function AuditPanel({
                 </span>
               </div>
               <div>
-                <span className="text-slate-500">M:</span> {trustReceipt.M.toFixed(4)}
+                <span className="text-slate-500">M:</span> {(trustReceipt.M ?? 0).toFixed(4)}
               </div>
               <div>
                 <span className="text-slate-500">receipt_version:</span>{' '}

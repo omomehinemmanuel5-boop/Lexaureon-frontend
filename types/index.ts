@@ -1,18 +1,27 @@
 export interface TrustReceipt {
-  run_id: string;
-  generated_at: string;
-  input_hash: string;
-  raw_output_hash: string;
-  governed_output_hash: string;
-  final_output_hash: string;
-  intervention: boolean;
-  intervention_reason: string;
-  semantic_diff_score: number;
-  M: number;
-  stability_timeline: { stage: string; stability: number }[];
-  integrity_signature: string;
-  key_id: string;
-  receipt_version: string;
+  id?: string;
+  run_id?: string;
+  timestamp?: number;
+  generated_at?: string;
+  plan?: string;
+  model?: string;
+  input_hash?: string;
+  prompt_hash?: string;
+  output_hash?: string;
+  raw_output_hash?: string;
+  governed_output_hash?: string;
+  integrity_signature?: string;
+  signature?: string;
+  key_id?: string;
+  receipt_version?: string;
+  governor_version?: string;
+  health?: string;
+  M?: number;
+  M_score?: number;
+  intervention?: boolean;
+  intervention_applied?: boolean;
+  crs_state?: { C: number; R: number; S: number };
+  crs_vector?: { C: number; R: number; S: number };
 }
 
 export interface GovernanceResponse {
@@ -23,16 +32,35 @@ export interface GovernanceResponse {
     r: number;
     s: number;
     m: number;
+    M_raw?: number;
+    M_governed?: number;
+    health?: string;
   };
   intervention?: {
-    triggered: boolean;
+    triggered?: boolean;
+    applied?: boolean;
+    type?: string;
     reason?: string;
   };
   diff?: {
+    changed?: boolean;
+    delta_score?: number;
+    summary?: string;
     removed: string[];
     added: string[];
     unchanged: string[];
   };
+  state?: {
+    raw: { C: number; R: number; S: number };
+    governed: { C: number; R: number; S: number };
+  };
+  triggers?: {
+    collapse: boolean;
+    velocity: boolean;
+    per_invariant?: { C?: boolean; R?: boolean; S?: boolean };
+  };
+  audit_id?: string;
+  timestamp?: number;
   upgrade_required?: boolean;
   trust_receipt?: TrustReceipt | null;
 }
@@ -47,15 +75,8 @@ export interface PreEvalResult {
 }
 
 export interface AuthUser {
-  id: string;
-  email: string;
-  company_name: string;
-  plan: 'free' | 'pro' | 'enterprise';
-}
-
-export interface AuthToken {
-  access_token: string;
-  token_type: 'bearer';
-  expires_at: string;
-  user: AuthUser;
+  id?: string;
+  email?: string;
+  name?: string;
+  plan?: string;
 }

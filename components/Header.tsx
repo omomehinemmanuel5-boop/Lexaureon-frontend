@@ -43,9 +43,9 @@ export default function Header({ apiCalls }: { apiCalls: number }) {
                     {user.email}
                   </span>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_CLASS[user.plan] ?? PLAN_CLASS.free}`}
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_CLASS[user.plan ?? "free"] ?? PLAN_CLASS.free}`}
                   >
-                    {PLAN_LABEL[user.plan] ?? user.plan}
+                    {PLAN_LABEL[user.plan ?? "free"] ?? user.plan}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 justify-end">

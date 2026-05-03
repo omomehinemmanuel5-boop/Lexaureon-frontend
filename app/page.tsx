@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import InputConsole from '@/components/InputConsole';
-import ResultsPanel from '@/components/ResultsPanel';
-import SimplexVisualization from '@/components/SimplexVisualization';
-import AuditPanel from '@/components/AuditPanel';
+import GovernanceDisplay from '@/components/GovernanceDisplay';
+
+
 import UpgradeModal from '@/components/UpgradeModal';
 import Header from '@/components/Header';
 import { GovernanceResponse } from '@/types';
@@ -17,7 +17,7 @@ export default function Home() {
   const [response, setResponse] = useState<GovernanceResponse | null>(null);
   const [apiCalls, setApiCalls] = useState(0);
   const [showUpgrade, setShowUpgrade] = useState(false);
-  const [showDiff, setShowDiff] = useState(false);
+  
   const [error, setError] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +35,7 @@ export default function Home() {
     if (!prompt.trim()) return;
     setLoading(true);
     setError(null);
-    setShowDiff(false);
+    
     try {
       const res = await fetch('/api/lex/run', {
         method: 'POST',
@@ -76,9 +76,7 @@ export default function Home() {
           )}
           {response && !loading && (
             <div ref={resultsRef} className="space-y-4">
-              <ResultsPanel response={response} showDiff={showDiff} onToggleDiff={() => setShowDiff(!showDiff)} />
-              <SimplexVisualization c={response.metrics.c} r={response.metrics.r} s={response.metrics.s} m={response.metrics.m} threshold={0.15} governorActivated={response.metrics.m < 0.15} />
-              <AuditPanel metrics={response.metrics} interventionTriggered={response.intervention?.triggered ?? false} interventionReason={response.intervention?.reason} />
+              <GovernanceDisplay response={response} />
             </div>
           )}
         </div>

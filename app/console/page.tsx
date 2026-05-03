@@ -162,7 +162,7 @@ export default function Console() {
     if (!prompt.trim()) return;
     setLoading(true); setError(null); setPulse(false);
     try {
-      const r = await fetch('/api/lex/run', {
+      const r = await fetch('/api/govern', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, session_id: 'console' }),

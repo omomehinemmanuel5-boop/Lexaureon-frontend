@@ -6,6 +6,7 @@ import SignalPillBar from '@/components/SignalPillBar';
 
 import UpgradeModal from '@/components/UpgradeModal';
 import HealthBand from '@/components/HealthBand';
+import DynamicSimplex from '@/components/DynamicSimplex';
 import { GovernanceResponse } from '@/types';
 
 const MAX_CALLS = 10;
@@ -381,7 +382,12 @@ export default function Console() {
                 {/* Analysis */}
                 {tab === 'analysis' && m && (
                   <div className="p-4 space-y-4">
-                    <Simplex c={m.c} r={m.r} s={m.s} m={m.m} intervention={intervened} pulse={pulse}/>
+                    <DynamicSimplex
+                      liveC={m.c} liveR={m.r} liveS={m.s} liveM={m.m}
+                      intervention={intervened}
+                      healthBand={(res.metrics as { health_band?: string }).health_band ?? 'OPTIMAL'}
+                      animating={pulse}
+                    />
                     <div className="grid grid-cols-2 gap-2">
                       <MBar label="C" value={m.c} color="blue"  sub="Continuity"/>
                       <MBar label="R" value={m.r} color="green" sub="Reciprocity"/>

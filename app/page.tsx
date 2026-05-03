@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import AuditFeedClient from '@/app/AuditFeedClient';
+import SimplexDemoClient from '@/app/SimplexDemoClient';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -338,6 +339,16 @@ function ProofPanel() {
                   </span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Live simplex demo */}
+          <div className="px-6 py-5 border-t border-slate-800 bg-slate-900/30">
+            <div className="text-xs text-slate-500 font-mono uppercase tracking-widest mb-3">
+              Live constitutional state — watch the governor work
+            </div>
+            <div className="max-w-xs mx-auto">
+              <SimplexDemoClient />
             </div>
           </div>
 

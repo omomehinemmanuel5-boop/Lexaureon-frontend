@@ -24,3 +24,129 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ── Landing Page Animations ──────────────────────────── */
+
+@keyframes hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scroll-reveal-anim {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes orbit-dot {
+  0% {
+    transform: translate(0px, 0px);
+    fill: #60a5fa;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  25% {
+    transform: translate(0px, -88px);
+    fill: #60a5fa;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  50% {
+    transform: translate(-63px, 44px);
+    fill: #34d399;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  75% {
+    transform: translate(63px, 44px);
+    fill: #a78bfa;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  100% {
+    transform: translate(0px, 0px);
+    fill: #60a5fa;
+  }
+}
+
+@keyframes orbit-glow {
+  0% {
+    transform: translate(0px, 0px);
+    opacity: 0.12;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  25% {
+    transform: translate(0px, -88px);
+    opacity: 0.28;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  50% {
+    transform: translate(-63px, 44px);
+    opacity: 0.18;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  75% {
+    transform: translate(63px, 44px);
+    opacity: 0.22;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  100% {
+    transform: translate(0px, 0px);
+    opacity: 0.12;
+  }
+}
+
+@keyframes edge-shimmer {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.hero-animate {
+  animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 350ms; }
+.delay-400 { animation-delay: 500ms; }
+.delay-500 { animation-delay: 650ms; }
+
+.simplex-dot-core {
+  animation: orbit-dot 14s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.simplex-glow-ring {
+  animation: orbit-glow 14s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.simplex-edge {
+  animation: edge-shimmer 4s ease-in-out infinite;
+}
+
+.badge-dot {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@supports (animation-timeline: view()) {
+  .reveal-on-scroll {
+    animation: scroll-reveal-anim linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 30%;
+  }
+}

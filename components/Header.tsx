@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/app/context/AuthContext';
 import AuthModal from './AuthModal';
 
@@ -36,6 +37,12 @@ export default function Header({ apiCalls }: { apiCalls: number }) {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/landing"
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors hidden sm:block"
+            >
+              About
+            </Link>
             {user ? (
               <div className="text-right">
                 <div className="flex items-center gap-2 justify-end mb-1">

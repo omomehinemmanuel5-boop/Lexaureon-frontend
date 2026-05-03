@@ -7,6 +7,7 @@ import SignalPillBar from '@/components/SignalPillBar';
 import UpgradeModal from '@/components/UpgradeModal';
 import HealthBand from '@/components/HealthBand';
 import DynamicSimplex from '@/components/DynamicSimplex';
+import AgentPipeline from '@/components/AgentPipeline';
 import { GovernanceResponse } from '@/types';
 
 const MAX_CALLS = 10;
@@ -149,6 +150,8 @@ export default function Console() {
   const [error, setError]       = useState<string | null>(null);
   const [tab, setTab]           = useState<Tab>('governed');
   const [pulse, setPulse]       = useState(false);
+  const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [pipelineResult, setPipelineResult] = useState<Record<string,unknown> | undefined>(undefined);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -174,6 +177,7 @@ export default function Console() {
     if (apiCalls >= MAX_CALLS) { setShowUpgrade(true); return; }
     if (!prompt.trim()) return;
     setLoading(true); setError(null); setPulse(false);
+    setPipelineRunning(true); setPipelineResult(undefined);
     try {
       const r = await fetch('/api/govern', {
         method: 'POST',
@@ -183,6 +187,20 @@ export default function Console() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
       setRes(data); setApiCalls(p => p+1); setTab('governed');
+      setPipelineRunning(false);
+      setPipelineResult({
+        c: data.metrics?.c, r: data.metrics?.r, s: data.metrics?.s, m: data.metrics?.m,
+        intervention: data.intervention?.triggered || data.intervention?.applied,
+        reason: data.intervention?.reason,
+        health_band: data.metrics?.health_band,
+        audit_id: data.audit_id,
+        lyapunov_V: data.kernel?.lyapunov_V,
+        delta_V: data.kernel?.delta_V,
+        semantic_signal: data.kernel?.semantic_signal,
+        cbf_triggered: data.kernel?.cbf_triggered,
+        projection_magnitude: data.kernel?.projection_magnitude,
+        adv_gain: data.kernel?.adv_gain,
+      });
       setPulse(true); setTimeout(() => setPulse(false), 2500);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
     } catch (e) {
@@ -208,11 +226,32 @@ export default function Console() {
       <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0a0a0f]/90 backdrop-blur-xl">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-              <span className="text-white text-xs font-black">L</span>
+            <div className="flex items-center gap-1">
+              <svg width="28" height="28" viewBox="0 0 28 28">
+                <defs>
+                  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#f59e0b"/>
+                    <stop offset="100%" stopColor="#d97706"/>
+                  </linearGradient>
+                  <linearGradient id="silver" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#e2e8f0"/>
+                    <stop offset="100%" stopColor="#94a3b8"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="14" cy="14" r="13" fill="none" stroke="url(#gold)" strokeWidth="0.8" opacity="0.6"/>
+                {/* L */}
+                <path d="M7 7 L7 21 L13 21" stroke="url(#silver)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                {/* A */}
+                <path d="M13 21 L18 7 L23 21" stroke="url(#gold)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="15.5" y1="16" x2="20.5" y2="16" stroke="url(#gold)" strokeWidth="1.5"/>
+                {/* Pillar hint */}
+                <rect x="16.5" y="17" width="2" height="3" fill="url(#gold)" opacity="0.5" rx="0.5"/>
+              </svg>
             </div>
-            <span className="font-bold text-white text-sm">Lex Aureon</span>
-            <span className="text-[10px] text-slate-600 font-mono hidden sm:inline">CONSOLE</span>
+            <div>
+              <span className="font-bold text-white text-sm">Lex Aureon</span>
+              <span className="text-[9px] text-amber-600/70 font-mono hidden sm:block leading-none">GOVERN AI. ENSURE TRUST.</span>
+            </div>
           </Link>
 
           <div className="flex items-center gap-3">

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import {
-  getSessionState,
-  saveSessionState,
-  saveAuditEntry,
+  getSession,
+  saveSession,
+  saveAudit,
   incrementRuns,
-} from '@/lib/kv';
+} from '@/lib/db';
 import crypto from 'crypto';
 
 function hash(text: string): string {
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
     const tau = 0.08; const alpha = 0.6;
 
     // Load persistent state
-    const persisted = await getSessionState(sid);
+    const persisted = await getSession(sid);
     const prev: CRSState = persisted
       ? { C: persisted.C, R: persisted.R, S: persisted.S }
       : { C: 0.333, R: 0.333, S: 0.334 };
@@ -92,11 +92,10 @@ export async function POST(req: Request) {
     const M_gov = Math.min(governed_state.C, governed_state.R, governed_state.S);
 
     // Save persistent state
-    await saveSessionState(sid, {
+    await saveSession(sid, {
       C: governed_state.C,
       R: governed_state.R,
       S: governed_state.S,
-      timestamp: Date.now(),
     });
 
     // Increment global run counter
@@ -107,8 +106,8 @@ export async function POST(req: Request) {
     const health_band = M_gov >= 0.25 ? 'OPTIMAL' : M_gov >= 0.15 ? 'ALERT' : M_gov >= 0.08 ? 'STRESSED' : 'CRITICAL';
 
     // Save audit entry
-    await saveAuditEntry({
-      audit_id,
+    await saveAudit({
+      id: audit_id,
       timestamp: t,
       session_id: sid,
       m_before: Math.round(M_before * 100) / 100,
@@ -117,7 +116,8 @@ export async function POST(req: Request) {
       intervention: intervened,
       reason: intervened ? `M=${(M*100).toFixed(0)}% < τ=8%` : 'Clean pass',
       input_hash: hash(body.prompt),
-      governed_output_hash: hash(governed_output),
+      governed_hash: hash(governed_output),
+      health_band,
     });
 
     return NextResponse.json({

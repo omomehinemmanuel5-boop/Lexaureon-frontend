@@ -35,12 +35,12 @@ function LandingNav() {
           >
             Research
           </a>
-          <Link
-            href="/"
+          <a
+            href="https://www.lexaureon.com"
             className="text-sm bg-white/10 hover:bg-white/15 text-white px-4 py-2 rounded-lg transition-colors duration-200 border border-white/10 hover:border-white/20"
           >
             Open Console
-          </Link>
+          </a>
         </div>
       </div>
     </nav>
@@ -104,15 +104,15 @@ function HeroSection() {
 
         {/* CTAs */}
         <div className="hero-animate delay-300 flex flex-col sm:flex-row gap-3 justify-center mb-20">
-          <Link
-            href="/"
+          <a
+            href="https://www.lexaureon.com"
             className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold rounded-xl transition-all duration-200 shadow-[0_0_40px_rgba(59,130,246,0.28)] hover:shadow-[0_0_60px_rgba(59,130,246,0.45)] text-sm sm:text-base"
           >
             Try Live Demo
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
-          </Link>
+          </a>
           <a
             href="https://doi.org/10.5281/zenodo.18944243"
             target="_blank"
@@ -513,15 +513,15 @@ function DemoCTASection() {
                 Type any prompt. Watch real-time constitutional analysis.
                 Governor activates when stability drops.
               </p>
-              <Link
-                href="/"
+              <a
+                href="https://www.lexaureon.com"
                 className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold rounded-xl transition-all duration-200 shadow-[0_0_30px_rgba(59,130,246,0.25)] hover:shadow-[0_0_50px_rgba(59,130,246,0.40)] text-sm"
               >
                 Open Console
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
-              </Link>
+              </a>
             </div>
 
             {/* Right: audit snippet */}
@@ -655,8 +655,8 @@ function FooterSection() {
       title: 'Engineers',
       desc: 'Integrate the CRS Governor into your AI stack. API-first, composable, and production-ready.',
       cta: 'Open Console',
-      href: '/',
-      external: false,
+      href: 'https://www.lexaureon.com',
+      external: true,
       color: 'cyan',
     },
     {
@@ -752,9 +752,9 @@ function FooterSection() {
         <div className="border-t border-slate-800/60 pt-10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
           <span>© 2025 Lex Aureon · Aureonics Framework</span>
           <div className="flex items-center gap-4">
-            <Link href="/" className="hover:text-slate-400 transition-colors">
+            <a href="https://www.lexaureon.com" className="hover:text-slate-400 transition-colors">
               Console
-            </Link>
+            </a>
             <a
               href="https://doi.org/10.5281/zenodo.18944243"
               target="_blank"

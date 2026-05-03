@@ -1,31 +1,23 @@
-import type { Metadata, Viewport } from "next";
-import "./globals.css";
-import { AuthProvider } from "@/app/context/AuthContext";
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
-  title: "Lex Aureon | Governed AI Execution",
-  description: "State-space control system for language generation. Real-time monitoring, correction, and governance.",
+  title: 'Lex Aureon | Constitutional AI Governance',
+  description: 'State-space control system for language generation. Constitutional AI governance powered by the Aureonics framework.',
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
+export const viewport = {
+  width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,
-  themeColor: "#0f172a",
+  maximumScale: 1,
+  userScalable: false,
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className="h-full antialiased scroll-smooth"
-    >
-      <body className="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
-        <AuthProvider>{children}</AuthProvider>
+    <html lang="en" className="scroll-smooth">
+      <body className="bg-slate-950 text-slate-100 antialiased min-h-screen flex flex-col overflow-x-hidden">
+        {children}
       </body>
     </html>
   );

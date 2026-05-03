@@ -8,7 +8,7 @@ import { createClient, type Client } from '@libsql/client';
 
 let _client: Client | null = null;
 
-function getClient(): Client | null {
+export function getClient(): Client | null {
   if (!process.env.TURSO_DATABASE_URL) return null;
   if (_client) return _client;
   _client = createClient({

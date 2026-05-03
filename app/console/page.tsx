@@ -8,6 +8,7 @@ import UpgradeModal from '@/components/UpgradeModal';
 import HealthBand from '@/components/HealthBand';
 import DynamicSimplex from '@/components/DynamicSimplex';
 import AgentPipeline from '@/components/AgentPipeline';
+import EmailCapture from '@/components/EmailCapture';
 import { GovernanceResponse } from '@/types';
 
 const MAX_CALLS = 10;
@@ -151,8 +152,15 @@ export default function Console() {
   const [tab, setTab]           = useState<Tab>('governed');
   const [pulse, setPulse]       = useState(false);
   const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+  const [healthBand, setHealthBand] = useState('OPTIMAL');
+  const [totalRuns, setTotalRuns] = useState<number|null>(null);
   const [pipelineResult, setPipelineResult] = useState<Record<string,unknown> | undefined>(undefined);
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/api/stats').then(r => r.json()).then(d => setTotalRuns(d.runs)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     // Developer reset via ?dev_reset=true
@@ -175,6 +183,10 @@ export default function Console() {
 
   const run = async () => {
     if (apiCalls >= MAX_CALLS) { setShowUpgrade(true); return; }
+    // Check email captured
+    if (!localStorage.getItem('lex_email_captured') && apiCalls === 0) {
+      setShowEmail(true); return;
+    }
     if (!prompt.trim()) return;
     setLoading(true); setError(null); setPulse(false);
     setPipelineRunning(true); setPipelineResult(undefined);
@@ -188,6 +200,8 @@ export default function Console() {
       if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
       setRes(data); setApiCalls(p => p+1); setTab('governed');
       setPipelineRunning(false);
+      if (data.metrics?.health_band) setHealthBand(data.metrics.health_band);
+      if (totalRuns !== null) setTotalRuns(t => t !== null ? t + 1 : null);
       setPipelineResult({
         c: data.metrics?.c, r: data.metrics?.r, s: data.metrics?.s, m: data.metrics?.m,
         intervention: data.intervention?.triggered || data.intervention?.applied,
@@ -220,7 +234,12 @@ export default function Console() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white flex flex-col">
+    <div className={`min-h-screen text-white flex flex-col transition-all duration-1000 ${
+      healthBand === 'OPTIMAL' ? 'health-optimal' :
+      healthBand === 'ALERT' ? 'health-alert' :
+      healthBand === 'STRESSED' ? 'health-stressed' :
+      healthBand === 'CRITICAL' ? 'health-critical' : ''
+    }`} style={{ background: '#0a0a0f' }}>
 
       {/* ── Top Nav ─────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0a0a0f]/90 backdrop-blur-xl">
@@ -243,7 +262,10 @@ export default function Console() {
                   pct > 80 ? 'bg-red-500' : pct > 50 ? 'bg-amber-500' : 'bg-blue-500'
                 }`} style={{ width: `${pct}%` }}/>
               </div>
-              <span className="text-xs text-slate-500 font-mono">{apiCalls}/{MAX_CALLS}</span>
+  <span className="text-xs text-slate-500 font-mono">{apiCalls}/{MAX_CALLS}</span>
+              {totalRuns && (
+                <span className="text-xs text-slate-700 font-mono hidden sm:inline">· {totalRuns.toLocaleString()} total runs</span>
+              )}
             </div>
             <button onClick={() => setShowUpgrade(true)}
               className="text-xs px-3 py-1.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold rounded-lg hover:from-blue-500 hover:to-cyan-500 transition-all active:scale-95">
@@ -435,7 +457,33 @@ export default function Console() {
                 {/* Audit */}
                 {tab === 'audit' && (
                   <div className="p-4 space-y-3 font-mono">
-                    <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">Governance Audit Trail</div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Governance Audit Trail</div>
+                      <div className="flex gap-2">
+                        {res.audit_id && (
+                          <a href={`/audit/${res.audit_id}`} target="_blank" rel="noopener noreferrer"
+                            className="text-xs px-2.5 py-1 bg-amber-900/20 border border-amber-800/40 text-amber-400 rounded-lg hover:bg-amber-900/30 transition-colors font-mono">
+                            Share ↗
+                          </a>
+                        )}
+                        <button onClick={() => {
+                          const exportData: Record<string, unknown> = {
+                            audit_id: res.audit_id,
+                            timestamp: res.timestamp,
+                            metrics: res.metrics,
+                            intervention: res.intervention,
+                          };
+                          const data = exportData;
+                          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url; a.download = `lex-audit-${res.audit_id}.json`;
+                          a.click(); URL.revokeObjectURL(url);
+                        }} className="text-xs px-2.5 py-1 bg-slate-800/60 border border-white/10 text-slate-400 rounded-lg hover:bg-slate-700/60 transition-colors font-mono">
+                          Export ↓
+                        </button>
+                      </div>
+                    </div>
                     {[
                       { label: 'Audit ID', value: res.audit_id ?? 'N/A', color: 'text-blue-400' },
                       { label: 'Timestamp', value: res.timestamp ? new Date(res.timestamp).toISOString() : 'N/A', color: 'text-slate-300' },
@@ -495,6 +543,14 @@ export default function Console() {
       </div>
 
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} callsUsed={apiCalls} />}
+      {showEmail && (
+        <EmailCapture onComplete={(email) => {
+          console.log('Email captured:', email);
+          setShowEmail(false);
+          // Auto-run after capture
+          setTimeout(() => run(), 100);
+        }} />
+      )}
     </div>
   );
 }

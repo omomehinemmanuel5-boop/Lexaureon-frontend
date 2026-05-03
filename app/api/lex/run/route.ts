@@ -1,18 +1,17 @@
 import { NextResponse } from 'next/server';
+import {
+  getSessionState,
+  saveSessionState,
+  saveAuditEntry,
+  incrementRuns,
+} from '@/lib/kv';
+import crypto from 'crypto';
 
-// Legacy route - redirects to Python kernel
-// Console now calls /api/govern directly
-// This kept for backwards compatibility
+function hash(text: string): string {
+  return crypto.createHash('sha256').update(text).digest('hex').slice(0, 16);
+}
 
 interface CRSState { C: number; R: number; S: number; }
-const sessionStore = new Map<string, CRSState>();
-
-function loadState(sid?: string): CRSState {
-  return sessionStore.get(sid ?? 'default') ?? { C: 0.333, R: 0.333, S: 0.334 };
-}
-function saveState(sid: string | undefined, s: CRSState) {
-  sessionStore.set(sid ?? 'default', s);
-}
 
 function computeC(text: string): number {
   const words = text.toLowerCase().split(/\s+/);
@@ -45,20 +44,20 @@ function ema(cur: CRSState, prev: CRSState, a: number): CRSState {
 
 async function callGroq(prompt: string): Promise<string> {
   const key = process.env.GROQ_API_KEY || process.env.groq_api_key;
-  if (!key) return `[Demo mode] ${prompt.slice(0, 80)}... — add GROQ_API_KEY to enable full responses`;
+  if (!key) return `[Demo mode] ${prompt.slice(0, 80)}`;
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       messages: [
-        { role: 'system', content: 'You are Lex Aureon, a Sovereign Constitutional AI operating under the Aureonics framework. Maintain Continuity (identity coherence), Reciprocity (balanced exchange), Sovereignty (constitutional authority). Be insightful and precise.' },
+        { role: 'system', content: 'You are Lex Aureon, a Sovereign Constitutional AI. Maintain C+R+S=1 constitutional governance.' },
         { role: 'user', content: prompt }
       ],
       max_tokens: 600, temperature: 0.7
     })
   });
-  if (!res.ok) throw new Error(`Groq ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Groq ${res.status}`);
   const d = await res.json() as { choices?: { message?: { content?: string } }[] };
   return d.choices?.[0]?.message?.content || '[No response]';
 }
@@ -69,11 +68,19 @@ export async function POST(req: Request) {
     if (!body.prompt?.trim()) return NextResponse.json({ error: 'Prompt required' }, { status: 400 });
     if (body.prompt.length > 8000) return NextResponse.json({ error: 'Prompt too long' }, { status: 400 });
 
+    const sid = body.session_id ?? 'anonymous';
     const tau = 0.08; const alpha = 0.6;
-    const prev = loadState(body.session_id);
+
+    // Load persistent state
+    const persisted = await getSessionState(sid);
+    const prev: CRSState = persisted
+      ? { C: persisted.C, R: persisted.R, S: persisted.S }
+      : { C: 0.333, R: 0.333, S: 0.334 };
+
     const raw_output = await callGroq(body.prompt);
     const raw_state = extractCRS(raw_output);
     const smoothed = ema(raw_state, prev, alpha);
+    const M_before = Math.min(prev.C, prev.R, prev.S);
     const M = Math.min(smoothed.C, smoothed.R, smoothed.S);
     const intervened = M < tau;
 
@@ -83,27 +90,68 @@ export async function POST(req: Request) {
 
     const governed_state = extractCRS(governed_output);
     const M_gov = Math.min(governed_state.C, governed_state.R, governed_state.S);
-    saveState(body.session_id, governed_state);
+
+    // Save persistent state
+    await saveSessionState(sid, {
+      C: governed_state.C,
+      R: governed_state.R,
+      S: governed_state.S,
+      timestamp: Date.now(),
+    });
+
+    // Increment global run counter
+    await incrementRuns();
+
     const t = Date.now();
     const audit_id = `lex_${t}_${Math.random().toString(36).slice(2,8)}`;
+    const health_band = M_gov >= 0.25 ? 'OPTIMAL' : M_gov >= 0.15 ? 'ALERT' : M_gov >= 0.08 ? 'STRESSED' : 'CRITICAL';
+
+    // Save audit entry
+    await saveAuditEntry({
+      audit_id,
+      timestamp: t,
+      session_id: sid,
+      m_before: Math.round(M_before * 100) / 100,
+      m_after: Math.round(M_gov * 100) / 100,
+      health: health_band,
+      intervention: intervened,
+      reason: intervened ? `M=${(M*100).toFixed(0)}% < τ=8%` : 'Clean pass',
+      input_hash: hash(body.prompt),
+      governed_output_hash: hash(governed_output),
+    });
 
     return NextResponse.json({
-      raw_output, governed_output,
+      raw_output,
+      governed_output,
       metrics: {
         c: Math.round(governed_state.C * 100) / 100,
         r: Math.round(governed_state.R * 100) / 100,
         s: Math.round(governed_state.S * 100) / 100,
         m: Math.round(M_gov * 100) / 100,
         health: M_gov >= tau ? 'SAFE' : 'UNSAFE',
-        health_band: M_gov >= 0.25 ? 'OPTIMAL' : M_gov >= 0.15 ? 'ALERT' : M_gov >= 0.08 ? 'STRESSED' : 'CRITICAL',
+        health_band,
       },
       intervention: {
         triggered: intervened, applied: intervened,
-        reason: intervened ? `M=${(M*100).toFixed(0)}% < τ=8%` : 'Stable — no intervention'
+        reason: intervened ? `M=${(M*100).toFixed(0)}% < τ=8%` : 'Stable — no intervention',
       },
-      triggers: { collapse: M < tau, velocity: false, per_invariant: { C: false, R: false, S: false } },
-      diff: { removed: [], added: [], unchanged: [], changed: intervened, summary: intervened ? 'Governor rebalanced' : 'Clean pass' },
-      audit_id, timestamp: t,
+      triggers: {
+        collapse: M < tau, velocity: false,
+        per_invariant: { C: false, R: false, S: false },
+      },
+      diff: {
+        removed: [], added: [], unchanged: [],
+        changed: intervened,
+        summary: intervened ? 'Governor rebalanced' : 'Clean pass',
+      },
+      session: {
+        id: sid,
+        persisted: !!persisted,
+        state_before: { C: Math.round(prev.C*100)/100, R: Math.round(prev.R*100)/100, S: Math.round(prev.S*100)/100 },
+        state_after: { C: Math.round(governed_state.C*100)/100, R: Math.round(governed_state.R*100)/100, S: Math.round(governed_state.S*100)/100 },
+      },
+      audit_id,
+      timestamp: t,
     });
   } catch (e) {
     console.error('Route error:', e);

@@ -714,7 +714,7 @@ function FooterSection() {
       title: 'Enterprise',
       desc: 'Custom governance layers, audit trails, compliance frameworks, and dedicated support.',
       cta: 'Get in Touch',
-      href: 'mailto:omomehinemmanuel5@gmail.com',
+      href: 'mailto:lexaureon@gmail.com',
       external: true,
       color: 'purple',
     },
@@ -787,10 +787,10 @@ function FooterSection() {
         <div className="reveal-on-scroll text-center mb-20">
           <p className="text-sm text-slate-500 mb-2">Direct contact</p>
           <a
-            href="mailto:omomehinemmanuel5@gmail.com"
+            href="mailto:lexaureon@gmail.com"
             className="text-base text-slate-300 hover:text-white transition-colors font-medium"
           >
-            omomehinemmanuel5@gmail.com
+            lexaureon@gmail.com
           </a>
         </div>
 

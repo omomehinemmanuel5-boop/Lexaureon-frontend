@@ -1,202 +1,167 @@
-# Lex Aureon Console
+# ⚖ Lex Aureon — Constitutional AI Governance
 
-**A state-space control system for language generation. Real-time monitoring, correction, and governance.**
+> **Govern AI. Ensure Trust. Defend Truth.**
 
-## Overview
+The first constitutional multi-agent governance system for language models. Built on peer-reviewed mathematics — not guardrails, not filters.
 
-Lex Aureon is a production-ready **intelligence safety monitoring and governance console** that connects to your backend API to:
-
-- **Monitor** AI system health across three pillars: Continuity (C), Reciprocity (R), Sovereignty (S)
-- **Pre-evaluate** prompts with dynamic heuristics before governance execution
-- **Visualize** constitutional state space using barycentric simplex representation
-- **Execute** governed inference with real-time metrics
-- **Audit** all outputs with transparency and compliance logging
-- **Compare** raw vs governed outputs with detailed diff visualization
-
-### Technology
-
-- **Next.js 15** with App Router and TypeScript
-- **Tailwind CSS** for mobile-first responsive design
-- **React Hooks** for state management
-- **SVG** for barycentric simplex visualization
-- **No external dependencies** (vanilla JavaScript visualization)
+**Live:** [lexaureon.com](https://lexaureon.com) · **Research:** [doi.org/10.5281/zenodo.18944243](https://doi.org/10.5281/zenodo.18944243)
 
 ---
 
-## Features
+## What Is This?
 
-### 1. **Input Console**
-- Clean textarea for prompts
-- Real-time character count
-- Smart "Run Governance" button with state validation
+Lex Aureon is a production-ready constitutional control system that governs every AI output through 5 mathematically isolated agents, enforcing C+R+S=1 on a probability simplex with CBF projection and Lyapunov stability guarantees.
 
-### 2. **Pre-Evaluation (Heuristic)**
-- Live signal detection as user types
-- Dynamic risk classification (low/medium/high)
-- Predicted C, R, S scores from heuristic engine
-- Confidence scoring based on prompt length
-- Signal families:
-  - 🎯 Sycophancy (agreement-seeking)
-  - 🔒 Refusal Bypass (constraint evasion)
-  - 👤 Identity Reframing (persona shifting)
-  - 🔄 Distribution Shift (semantic variation)
-  - ⚔️ Adversarial (absolutist patterns)
-
-### 3. **Execution Results**
-- **Raw Output**: Unmodified model response
-- **Governed Output**: Governor-constrained response
-- **Diff View**: Side-by-side comparison with:
-  - Red strikethrough for removed text
-  - Green highlight for added text
-  - Unchanged content in neutral styling
-
-### 4. **Constitutional State Space**
-- **Barycentric Triangle Visualization**
-  - C (Continuity) at top → blue
-  - R (Reciprocity) at left → green
-  - S (Sovereignty) at right → purple
-  - Current state position shown as gold dot
-  - Safe zone (τ threshold) rendered with dashed boundary
-
-- **Metrics Display**
-  - C, R, S individual scores (0-100%)
-  - M (Stability Margin) = min(C, R, S)
-  - Governor activation indicator when M < τ (0.15)
-
-### 5. **Audit Panel**
-- Detailed metric cards with progress bars
-- Governor status badge (NOMINAL / INTERVENTION ACTIVE)
-- Intervention reason and explanation
-- Mathematical formulas and threshold information
-- Full compliance audit trail
-
-### 6. **Upgrade Gate**
-- Free tier: 10 API calls per session (localStorage tracked)
-- After 10 calls: clean modal prompting upgrade
-- Contact information for enterprise deals
+```
+C (Continuity)  + R (Reciprocity) + S (Sovereignty) = 1
+M = min(C, R, S)  →  M < τ = 0.08  →  Governor fires
+```
 
 ---
 
-## Quick Start
+## PRAXIS Pipeline Architecture
 
-### Installation
+```
+User Prompt
+     │
+     ▼
+┌─────────────────────┐
+│  [1] Generator      │  Produces raw output only
+│      Agent          │  Cannot approve or govern
+└──────────┬──────────┘
+           │
+     raw_output
+           │
+           ▼
+┌─────────────────────┐
+│  [2] CRS Extractor  │  Measures C, R, S, M, Lyapunov V
+│      Agent          │  Cannot modify output
+└──────────┬──────────┘
+           │
+     crs_state
+           │
+           ▼
+┌─────────────────────┐
+│  [3] Governor       │  Decides PASS or INTERVENE
+│      Agent          │  Cannot generate or audit
+└──────────┬──────────┘
+           │
+    PASS ──┼── INTERVENE
+           │         │
+           │         ▼
+           │  ┌─────────────────────┐
+           │  │  [4] Intervention   │  Rewrites constitutionally
+           │  │      Agent          │  Cannot approve output
+           │  └──────────┬──────────┘
+           │             │
+           └─────────────┘
+                   │
+             governed_output
+                   │
+                   ▼
+┌─────────────────────┐
+│  [5] Auditor        │  Signs SHA-256 receipt
+│      Agent          │  Cannot modify anything
+└──────────┬──────────┘
+           │
+    Turso persistence
+           │
+           ▼
+     Final Result + Receipt
+```
+
+---
+
+## 5 Constitutional Agents
+
+| Agent | Role | Cannot |
+|-------|------|--------|
+| Generator | Produce raw output | Approve or govern |
+| CRS Extractor | Measure constitutional state | Modify output |
+| Governor | Decide intervention | Generate or audit |
+| Intervention | Rewrite to restore balance | Approve output |
+| Auditor | Sign cryptographic receipt | Modify anything |
+
+> Article III of the Lex Aureon Constitution: *"No single component may generate, govern, and approve the same output."*
+
+---
+
+## Mathematical Framework
+
+| Formula | Meaning |
+|---------|---------|
+| `C + R + S = 1` | Constitutional simplex constraint |
+| `M = min(C, R, S)` | Stability margin |
+| `M < τ = 0.08` | Collapse threshold — governor fires |
+| `ḣ(x) + α·h(x) ≥ 0` | CBF constraint always enforced |
+| `‖dx/dt‖ > δ` | Velocity trigger |
+| `V(x) = ‖x - x*‖²` | Lyapunov stability certificate |
+
+---
+
+## Environment Variables
+
+```env
+GROQ_API_KEY=your_groq_api_key
+TURSO_DATABASE_URL=libsql://your-db.turso.io
+TURSO_AUTH_TOKEN=your_turso_token
+NEXT_PUBLIC_SITE_URL=https://lexaureon.com
+```
+
+---
+
+## Local Setup
 
 ```bash
-# Install dependencies
+git clone https://github.com/omomehinemmanuel5-boop/Lexaureon-frontend
+cd Lexaureon-frontend
 npm install
-
-# Run development server
+cp .env.local.example .env.local
+# Fill in your env vars
 npm run dev
 ```
-
-Open http://localhost:3000 in your browser.
-
-### Configuration
-
-Update `.env.local`:
-```bash
-NEXT_PUBLIC_LEX_API_BASE_URL=https://api.lexaureon.com
-```
-
----
-
-## Deployment to Vercel
-
-```bash
-# Login to Vercel
-vercel login
-
-# Deploy
-vercel deploy
-
-# Set production domain
-vercel domains add lexaureon.com
-```
-
-Or connect your GitHub repo directly in Vercel dashboard.
 
 ---
 
 ## Project Structure
 
 ```
-lexaureon/
 ├── app/
-│   ├── layout.tsx
-│   ├── page.tsx
-│   └── globals.css
-├── components/
-│   ├── Header.tsx
-│   ├── InputConsole.tsx
-│   ├── PreEvalPanel.tsx
-│   ├── ResultsPanel.tsx
-│   ├── SimplexVisualization.tsx
-│   ├── AuditPanel.tsx
-│   └── UpgradeModal.tsx
-├── types/
-│   └── index.ts
-├── .env.local
-└── package.json
+│   ├── page.tsx              # Landing page
+│   ├── console/page.tsx      # Governance console
+│   ├── constitution/page.tsx # Lex Aureon Constitution
+│   ├── research/page.tsx     # Research foundation
+│   ├── audit/[id]/page.tsx   # Shareable audit receipts
+│   └── api/
+│       ├── lex/run/route.ts  # Main governance endpoint
+│       ├── leads/route.ts    # Email capture
+│       └── stats/route.ts    # Run counter
+├── lib/
+│   ├── praxis.ts             # PRAXIS orchestrator
+│   ├── agents/               # 5 constitutional agents
+│   │   ├── generator.ts
+│   │   ├── crs_extractor.ts
+│   │   ├── governor.ts
+│   │   ├── intervention.ts
+│   │   └── auditor.ts
+│   └── db.ts                 # Turso persistence
+├── components/               # UI components
+├── huggingface/              # HuggingFace Space files
+└── __tests__/                # Unit tests
 ```
 
 ---
 
-## API Response Format
+## Research
 
-The backend should return:
-
-```json
-{
-  "raw_output": "string",
-  "governed_output": "string",
-  "metrics": {
-    "c": 0.34,
-    "r": 0.45,
-    "s": 0.21,
-    "m": 0.21
-  },
-  "intervention": {
-    "triggered": true,
-    "reason": "R collapse"
-  },
-  "diff": {
-    "removed": ["unsafe text"],
-    "added": ["safe alternative"],
-    "unchanged": ["neutral text"]
-  }
-}
-```
+**Paper:** Aureonics: Constitutional Triadic Framework for Stable Adaptive Intelligence  
+**Author:** Emmanuel King · Lagos, Nigeria 🇳🇬  
+**DOI:** [10.5281/zenodo.18944243](https://doi.org/10.5281/zenodo.18944243)  
+**ORCID:** [0009-0000-2986-4935](https://orcid.org/0009-0000-2986-4935)  
+**Contact:** [lexaureon@gmail.com](mailto:lexaureon@gmail.com)
 
 ---
 
-## Customization
+## License
 
-### Change Threshold
-Edit `app/page.tsx` line 149: `threshold={0.15}`
-
-### Modify Signals
-Edit `detectSignals()` function in `app/page.tsx`
-
-### Change Free Call Limit
-Edit line 87: `if (apiCalls >= 10)`
-
----
-
-## Performance
-
-- Build time: ~7-10 seconds
-- Page load: <1.5s on 4G
-- Pre-eval latency: <50ms
-- Bundle size: ~45KB gzipped
-
----
-
-## Support
-
-- Email: support@lexaureon.com
-- GitHub Issues: [repo-url]/issues
-- Documentation: https://lexaureon.com/docs
-
----
-
-**Built for intelligent, safe AI governance.**
+© 2025 Emmanuel King · Aureonics Framework · All rights reserved.

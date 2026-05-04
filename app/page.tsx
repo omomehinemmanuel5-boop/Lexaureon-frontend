@@ -794,7 +794,7 @@ function Footer() {
             <div className="grid grid-cols-2 gap-8 text-xs text-slate-500">
               <div>
                 <div className="font-semibold text-slate-400 mb-3">Product</div>
-                {[['Console', '/console'], ['Constitution', '/constitution'], ['Pricing', '#pricing']].map(([l,h]) => (
+                {[['Console', '/console'], ['Constitution', '/constitution'], ['Research', '/research'], ['Pricing', '#pricing']].map(([l,h]) => (
                   <a key={l} href={h} className="block py-1 hover:text-slate-300 transition-colors">{l}</a>
                 ))}
               </div>

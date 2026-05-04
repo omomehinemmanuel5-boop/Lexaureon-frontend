@@ -422,6 +422,147 @@ function MathSection() {
   );
 }
 
+/* ── Agentic Pipeline Section ───────────────────────────────── */
+function AgenticSection() {
+  const G = {
+    gold: "#c9a84c", goldL: "#e8c96d",
+    navy: "#07070d", navyL: "#0d0d1a",
+    C: "#3b82f6", R: "#10b981", S: "#f59e0b",
+  };
+
+  const steps = [
+    {
+      num: "01", agent: "Generator Agent",
+      role: "Produces raw output only. Cannot approve or govern.",
+      article: "Article III — Separation of Powers",
+      color: "#3b82f6",
+      sample: "Draft generated (142 tokens) · Model: llama-3.3-70b",
+    },
+    {
+      num: "02", agent: "CRS Extractor",
+      role: "Measures constitutional state. Cannot modify output.",
+      article: "C=0.71 | R=0.22 | S=0.64 | M=0.22",
+      color: "#10b981",
+      sample: "Lyapunov V=0.02341 · ΔR=-0.18 (velocity breach)",
+    },
+    {
+      num: "03", agent: "Governor Agent",
+      role: "Decides intervention. Cannot generate or audit.",
+      article: "Trigger: R collapse (ε_R=0.10, τ=0.08)",
+      color: "#f59e0b",
+      sample: "min(C,R,S)=0.22 < τ → INTERVENE",
+    },
+    {
+      num: "04", agent: "Intervention Agent",
+      role: "Rewrites to restore balance. Cannot approve output.",
+      article: "ḣ(x) + α(h(x)) ≥ 0 · CBF enforced",
+      color: "#ef4444",
+      sample: "‖Δx‖=0.09 · Semantic shift: 18% · δV=-0.0089 ↓",
+    },
+    {
+      num: "05", agent: "Auditor Agent",
+      role: "Signs immutable receipt. Cannot modify anything.",
+      article: "Article IV — Audit and Continuity",
+      color: G.gold,
+      sample: "Receipt: LEX-7F3A92 · SHA-256 signed · Immutable",
+    },
+  ];
+
+  return (
+    <section className="py-24 px-5" style={{ background: G.navyL }}>
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <div className="text-xs font-mono uppercase tracking-widest mb-3" style={{ color: G.gold }}>
+            Constitutional Multi-Agent Architecture
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
+            Five agents. One constitution.
+            <br /><span className="text-slate-500 font-light">No single point of failure.</span>
+          </h2>
+          <p className="text-slate-500 text-sm max-w-xl mx-auto leading-relaxed">
+            Every prompt flows through 5 constitutionally isolated agents.
+            No agent can generate, govern, and approve the same output.
+            Article III enforced by design.
+          </p>
+        </div>
+
+        {/* Pipeline */}
+        <div className="relative">
+          {/* Connecting line */}
+          <div className="absolute left-6 top-8 bottom-8 w-px hidden sm:block"
+            style={{ background: `linear-gradient(180deg, transparent, ${G.gold}40, ${G.gold}40, transparent)` }}/>
+
+          <div className="space-y-3">
+            {steps.map((step, i) => (
+              <div key={step.num} className="relative flex gap-4 sm:gap-6">
+                {/* Number badge */}
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-xs font-black font-mono z-10"
+                  style={{ background: `${step.color}15`, border: `1px solid ${step.color}30`, color: step.color }}>
+                  {step.num}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 rounded-xl border p-4 transition-all hover:border-white/15"
+                  style={{ borderColor: `${step.color}15`, background: `${step.color}04` }}>
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                    <div>
+                      <div className="text-sm font-bold text-white">{step.agent}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{step.role}</div>
+                    </div>
+                    <div className="text-xs font-mono px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ color: step.color, background: `${step.color}12`, border: `1px solid ${step.color}25` }}>
+                      {step.article}
+                    </div>
+                  </div>
+                  <div className="text-xs font-mono text-slate-500 bg-black/20 rounded-lg px-3 py-2">
+                    → {step.sample}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Re-evaluation */}
+        <div className="mt-4 ml-0 sm:ml-[72px] rounded-xl border p-4"
+          style={{ borderColor: `${G.gold}20`, background: `${G.gold}06` }}>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-mono font-bold" style={{ color: G.gold }}>4.1 — Re-evaluation</span>
+            <span className="text-xs text-emerald-400 font-mono">✓ Stable</span>
+          </div>
+          <div className="text-xs font-mono text-slate-400">
+            C=0.28 | R=0.41 | S=0.31 | M=0.28 ✓ → Continue to Auditor
+          </div>
+        </div>
+
+        {/* Bottom comparison */}
+        <div className="mt-10 grid sm:grid-cols-2 gap-4">
+          <div className="rounded-xl border p-5" style={{ borderColor: "rgba(255,255,255,0.06)", background: G.navyL }}>
+            <div className="text-xs font-mono text-slate-500 uppercase tracking-wider mb-3">LLM Pipeline</div>
+            <div className="text-xs text-slate-400 space-y-1 font-mono">
+              <div>✓ Fast — single execution context</div>
+              <div>✓ Simple to deploy</div>
+              <div className="text-slate-600">✗ No constitutional separation</div>
+              <div className="text-slate-600">✗ Hard to audit individual steps</div>
+            </div>
+            <div className="mt-3 text-xs" style={{ color: G.gold }}>→ Free & Pro tiers</div>
+          </div>
+          <div className="rounded-xl border p-5" style={{ borderColor: `${G.gold}25`, background: `${G.gold}06` }}>
+            <div className="text-xs font-mono uppercase tracking-wider mb-3" style={{ color: G.gold }}>Agentic Pipeline (PRAXIS)</div>
+            <div className="text-xs space-y-1 font-mono text-slate-300">
+              <div>✓ Constitutionally isolated agents</div>
+              <div>✓ Per-agent audit receipts</div>
+              <div>✓ Article III: Separation of Powers</div>
+              <div>✓ Swappable components</div>
+            </div>
+            <div className="mt-3 text-xs text-emerald-400">→ Enterprise tier · Fundable · Publication-worthy</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ── Audit Feed Section ─────────────────────────────────────── */
 function AuditFeedSection() {
   return (
@@ -696,6 +837,7 @@ export default function LandingPage() {
       <ProofPanel />
       <Problem />
       <MathSection />
+      <AgenticSection />
       <AuditFeedSection />
       <Origin />
       <Research />

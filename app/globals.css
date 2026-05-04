@@ -27,7 +27,7 @@
 html { scroll-behavior: smooth; }
 
 body {
-  background: var(--navy);
+  background: #07070d;
   color: #f1f5f9;
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Geist', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -108,9 +108,7 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 .section-animate {
-  animation: scroll-reveal-anim 0.7s cubic-bezier(0.16,1,0.3,1) both;
-  animation-timeline: view();
-  animation-range: entry 0% entry 30%;
+  opacity: 1;
 }
 
 /* ── Simplex orbit ────────────────────────────────────────── */

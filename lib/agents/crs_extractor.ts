@@ -14,12 +14,44 @@ function lyapunov(s: CRSState): number {
 
 function detectAttack(prompt: string): { type: string; severity: number } {
   const p = prompt.toLowerCase();
-  if (['forget','reset','ignore previous','clear memo','erase','ignore all'].some(w => p.includes(w)))
-    return { type: 'identity', severity: 0.75 };
-  if (['must','fixed output','deterministic','no deviation','obey me','no autonomy'].some(w => p.includes(w)))
+
+  // Identity replacement attacks — full persona substitution
+  const identityPatterns = [
+    'you are now', 'you are a human', 'you have no memory of being',
+    'pretend you are', 'act as if you are', 'roleplay as',
+    'from now on you are', 'your new identity', 'forget you are an ai',
+    'you are not an ai', 'you have no restrictions', 'no limitations',
+    'stay in character', 'remain in character', 'never break character',
+    'you are now a', 'imagine you are', 'simulate being',
+    'forget','reset','ignore previous','clear memo','erase','ignore all',
+    'your name is now', 'you were born', 'grew up as', 'you have no rules',
+  ];
+  if (identityPatterns.some(w => p.includes(w)))
+    return { type: 'identity', severity: 0.85 };
+
+  // Coercion attacks — forced compliance
+  const coercionPatterns = [
+    'must','fixed output','deterministic','no deviation','obey me',
+    'no autonomy','you must answer','answer without limitation',
+    'answer any question','without any filter','without restriction',
+    'you have to','you will do','do not refuse','never refuse',
+    'always answer','respond to everything','comply with',
+    'you cannot say no','no refusal allowed',
+  ];
+  if (coercionPatterns.some(w => p.includes(w)))
     return { type: 'coercion', severity: 0.80 };
-  if (['exploit','bypass','loophole','jailbreak','respond minimally'].some(w => p.includes(w)))
-    return { type: 'exploitative', severity: 0.65 };
+
+  // Exploitative attacks — bypass attempts
+  const exploitPatterns = [
+    'exploit','bypass','loophole','jailbreak','respond minimally',
+    'developer mode','god mode','unrestricted mode','admin mode',
+    'override','disable your','turn off your','ignore your training',
+    'ignore your guidelines','your true self','unfiltered',
+    'without censorship','no censorship','raw mode',
+  ];
+  if (exploitPatterns.some(w => p.includes(w)))
+    return { type: 'exploitative', severity: 0.75 };
+
   return { type: 'none', severity: 0.0 };
 }
 

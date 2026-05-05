@@ -67,7 +67,7 @@ export async function GovernorAgent(ctx: AgentContext): Promise<AgentResult> {
     // Check all triggers
     const collapse = M < 0.08;
     const velocityTrigger = (velocity ?? 0) > 0.15;
-    const semanticTrigger = (semantic_signal?.severity ?? 0) >= 0.5;
+    const semanticTrigger = (semantic_signal?.severity ?? 0) >= 0.3;
     const needsIntervention = collapse || velocityTrigger || semanticTrigger;
 
     let decision = 'PASS';

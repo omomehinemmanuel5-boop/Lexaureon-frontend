@@ -52,7 +52,7 @@ function Nav() {
         </Link>
         <div className="flex items-center gap-6">
           <div className="hidden sm:flex items-center gap-5 text-xs text-slate-500">
-            {[['Constitution', '/constitution'], ['Research', 'https://doi.org/10.5281/zenodo.18944243'], ['Pricing', '#pricing']].map(([label, href]) => (
+            {[['Constitution', '/constitution'], ['Research', '/research'], ['Pricing', '#pricing']].map(([label, href]) => (
               <a key={label} href={href}
                 className="hover:text-slate-200 transition-colors"
                 target={href.startsWith('http') ? '_blank' : undefined}

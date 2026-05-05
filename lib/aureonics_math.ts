@@ -155,9 +155,36 @@ export function computeADV(decisions: string[], complianceFlags: boolean[]): {
 
 // ── Lyapunov candidate ────────────────────────────────────────────────────
 
+/**
+ * Lyapunov function — Section 11.10 exact formula
+ * V(x) = -Σ log(x_i) + (μ/2) Σ max(0, τ - x_i)²
+ * 
+ * Two terms:
+ * - Logarithmic barrier: prevents boundary collapse
+ * - Quadratic penalty: penalizes threshold violations
+ * 
+ * dV/dt ≤ 0 when governor active → proven stable
+ */
+const MU_LYP = 2.0;
+const TAU_LYP = 0.08;
+const FLOOR_LYP = 1e-9;
+
 export function lyapunov(C: number, R: number, S: number): number {
-  const center = 1/3;
-  return (C - center)**2 + (R - center)**2 + (S - center)**2;
+  const vals = [C, R, S];
+  // Logarithmic barrier term: -Σ log(x_i)
+  const barrier = -vals.reduce((s, xi) => s + Math.log(Math.max(xi, FLOOR_LYP)), 0);
+  // Quadratic violation penalty: (μ/2) Σ max(0, τ - x_i)²
+  const penalty = (MU_LYP / 2) * vals.reduce((s, xi) => {
+    const v = Math.max(0, TAU_LYP - xi);
+    return s + v * v;
+  }, 0);
+  return barrier + penalty;
+}
+
+/** Simple centroid Lyapunov for display/comparison */
+export function lyapunovCentroid(C: number, R: number, S: number): number {
+  const c = 1/3;
+  return (C-c)**2 + (R-c)**2 + (S-c)**2;
 }
 
 // ── CBF simplex projection ────────────────────────────────────────────────

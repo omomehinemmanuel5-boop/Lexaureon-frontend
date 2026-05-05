@@ -201,6 +201,27 @@ export async function runPraxis(prompt: string, session_id: string): Promise<Pra
 
   ctx.governed_output = intervention.output ?? ctx.raw_output;
 
+  // ── REAL AUREONICS MATH (runs here — both raw + governed available) ──
+  try {
+    const realMath = runRealAureonicsMath(
+      ctx.prompt,
+      ctx.raw_output || '',
+      ctx.governed_output || ctx.raw_output || '',
+    );
+    if (ctx.crs_state) {
+      ctx.crs_state.C = realMath.C;
+      ctx.crs_state.R = realMath.R;
+      ctx.crs_state.S = realMath.S;
+      ctx.crs_state.M = realMath.M;
+      ctx.lyapunov_V = realMath.lyapunov_V;
+      ctx.health_band = realMath.health_band;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (ctx as any).real_math = realMath;
+    }
+  } catch (_mathErr) {
+    // Real math failed — LLM estimates remain
+  }
+
   // ── AGENT 5: Auditor ────────────────────────────────────────
   const auditor = await AuditorAgent(ctx);
   addReceipt(ctx, 'AuditorAgent', auditor, 'SIGNED');

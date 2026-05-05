@@ -19,6 +19,7 @@ import { GovernorAgent } from './agents/governor';
 import { InterventionAgent } from './agents/intervention';
 import { AuditorAgent } from './agents/auditor';
 import { getSession, saveSession, saveAudit, incrementRuns } from './db';
+import { runRealAureonicsMath } from './aureonics_math';
 
 export interface PraxisResult {
   // Core outputs

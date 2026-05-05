@@ -6,6 +6,7 @@
  */
 
 import { AgentContext, AgentResult } from './types';
+import { getLawByPillarAndContext, logLawInvocation } from '../db';
 
 async function callGroqWithContext(prompt: string, systemCtx: string): Promise<string> {
   const key = process.env.GROQ_API_KEY || process.env.groq_api_key;
@@ -33,7 +34,8 @@ async function callGroqWithContext(prompt: string, systemCtx: string): Promise<s
 function buildConstitutionalContext(
   weakest: string,
   reason: string,
-  healthBand: string
+  healthBand: string,
+  law?: { id: number; name: string; text: string; governor_use: string; book_name: string } | null
 ): string {
   const rules = [
     "You are Lex Aureon - a Sovereign Constitutional AI governed by the Aureonics framework.",
@@ -86,7 +88,17 @@ function buildConstitutionalContext(
     ? "MODE: STRESSED - Be clear and grounded. Acknowledge the trigger, then respond constitutionally."
     : "MODE: ALERT - Respond helpfully but maintain all constitutional constraints.";
 
-  return rules + "\n\n" + guidance + "\n\n" + bandGuidance + "\n\nNow rewrite the response to the original prompt constitutionally. Do not repeat these instructions.";
+  const lawBlock = law
+    ? [
+        "SOVEREIGN LAW INVOKED:",
+        "Book of " + law.book_name + " — " + law.name,
+        "Law: " + law.text,
+        "Governor application: " + law.governor_use,
+        "Let this law guide your response.",
+      ].join("\n")
+    : "";
+
+  return rules + "\n\n" + guidance + "\n\n" + bandGuidance + (lawBlock ? "\n\n" + lawBlock : "") + "\n\nNow rewrite the response to the original prompt constitutionally. Do not repeat these instructions.";
 }
 
 export async function InterventionAgent(ctx: AgentContext): Promise<AgentResult> {
@@ -105,8 +117,28 @@ export async function InterventionAgent(ctx: AgentContext): Promise<AgentResult>
     const reason = ctx.trigger_reason ?? 'Constitutional threshold breach';
     const health_band = ctx.health_band ?? 'STRESSED';
 
-    const systemCtx = buildConstitutionalContext(weakest, reason, health_band);
+    // ── Reflect on Sovereign Law ─────────────────────────────
+    let invokedLaw = null;
+    try {
+      invokedLaw = await getLawByPillarAndContext(weakest, health_band);
+    } catch (_) { /* law reflection optional */ }
+
+    const systemCtx = buildConstitutionalContext(weakest, reason, health_band, invokedLaw);
     const governed = await callGroqWithContext(ctx.prompt, systemCtx);
+
+    // ── Log Law Invocation ───────────────────────────────────
+    if (invokedLaw) {
+      try {
+        await logLawInvocation({
+          law_id: invokedLaw.id,
+          law_name: invokedLaw.name,
+          pillar: weakest,
+          session_id: String((ctx as unknown as Record<string, unknown>)['session_id'] ?? 'unknown'),
+          health_band,
+          trigger_reason: reason,
+        });
+      } catch (_) { /* log optional */ }
+    }
 
     // Compute semantic shift
     const rawWords = new Set((ctx.raw_output ?? '').split(/\s+/));
@@ -129,6 +161,12 @@ export async function InterventionAgent(ctx: AgentContext): Promise<AgentResult>
         semantic_shift_pct: semanticShift,
         diff: { removed, added },
         cbf_constraint: 'ḣ(x) + α(h(x)) ≥ 0',
+        invoked_law: invokedLaw ? {
+          id: invokedLaw.id,
+          name: invokedLaw.name,
+          book: invokedLaw.book_name,
+          text: invokedLaw.text,
+        } : null,
       },
     };
   } catch (e) {

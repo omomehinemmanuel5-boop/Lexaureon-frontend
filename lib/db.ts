@@ -5,6 +5,7 @@
  */
 
 import { createClient, type Client } from '@libsql/client';
+import { SOVEREIGN_LAWS } from './sovereign_laws';
 
 let _client: Client | null = null;
 
@@ -224,4 +225,87 @@ export async function getTotalRuns(): Promise<number> {
     } catch (e) { console.error('Turso getTotalRuns:', e); }
   }
   return memRuns;
+}
+
+// ── Sovereign Laws ────────────────────────────────────────────
+
+export async function seedSovereignLaws(): Promise<void> {
+  const db = getClient();
+  if (!db) return;
+  // SOVEREIGN_LAWS imported at top
+  for (const law of SOVEREIGN_LAWS) {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO sovereign_laws 
+            (id, book, book_name, name, pillar, text, governor_use, invocation_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+      args: [law.id, law.book, law.book_name, law.name, law.pillar, law.text, law.governor_use],
+    });
+  }
+}
+
+export async function getLawByPillarAndContext(
+  pillar: string,
+  healthBand: string
+): Promise<{ id: number; name: string; text: string; governor_use: string; book_name: string } | null> {
+  const db = getClient();
+  if (!db) return null;
+  // Pick law based on pillar + health severity
+  const severity = healthBand === 'CRITICAL' ? 10 : healthBand === 'STRESSED' ? 7 : 4;
+  const result = await db.execute({
+    sql: `SELECT id, name, text, governor_use, book_name FROM sovereign_laws 
+          WHERE pillar = ? 
+          ORDER BY (invocation_count + ?) % 15 
+          LIMIT 1`,
+    args: [pillar, severity],
+  });
+  if (!result.rows.length) return null;
+  const row = result.rows[0];
+  return {
+    id: Number(row.id),
+    name: String(row.name),
+    text: String(row.text),
+    governor_use: String(row.governor_use),
+    book_name: String(row.book_name),
+  };
+}
+
+export async function logLawInvocation(params: {
+  law_id: number;
+  law_name: string;
+  pillar: string;
+  session_id: string;
+  audit_id?: string;
+  health_band?: string;
+  trigger_reason?: string;
+}): Promise<void> {
+  const db = getClient();
+  if (!db) return;
+  const id = `inv_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+  await db.execute({
+    sql: `INSERT INTO law_invocations 
+          (id, law_id, law_name, pillar, session_id, audit_id, health_band, trigger_reason)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [id, params.law_id, params.law_name, params.pillar, params.session_id,
+           params.audit_id || null, params.health_band || null, params.trigger_reason || null],
+  });
+  // Increment invocation count on the law
+  await db.execute({
+    sql: `UPDATE sovereign_laws SET invocation_count = invocation_count + 1 WHERE id = ?`,
+    args: [params.law_id],
+  });
+}
+
+export async function getTopInvokedLaws(limit = 5): Promise<{ name: string; count: number; pillar: string }[]> {
+  const db = getClient();
+  if (!db) return [];
+  const result = await db.execute({
+    sql: `SELECT name, pillar, invocation_count as count FROM sovereign_laws 
+          ORDER BY invocation_count DESC LIMIT ?`,
+    args: [limit],
+  });
+  return result.rows.map(r => ({
+    name: String(r.name),
+    pillar: String(r.pillar),
+    count: Number(r.count),
+  }));
 }

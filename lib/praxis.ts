@@ -134,6 +134,37 @@ export async function runPraxis(prompt: string, session_id: string): Promise<Pra
 
   const crsState = crs.meta?.crs_state as CRSState;
   ctx.crs_state = crsState;
+
+  // ── REAL MATH: Enhance with Python CBF Governor ──────────
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lexaureon.com';
+    const pyRes = await fetch(`${siteUrl}/api/python/govern`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: ctx.prompt,
+        raw_output: ctx.raw_output || '',
+        governed_output: ctx.governed_output || ctx.raw_output || '',
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (pyRes.ok) {
+      const pyData = await pyRes.json() as Record<string, unknown>;
+      // Blend Python real math with LLM estimates (Python is ground truth)
+      if (ctx.crs_state && pyData.c) {
+        ctx.crs_state.C = pyData.c as number;
+        ctx.crs_state.R = pyData.r as number;
+        ctx.crs_state.S = pyData.s as number;
+        ctx.crs_state.M = pyData.m as number;
+        ctx.lyapunov_V = pyData.lyapunov_v as number;
+        ctx.health_band = pyData.health_band as string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (ctx as unknown as Record<string, unknown>).real_math = pyData;
+      }
+    }
+  } catch (_pyErr) {
+    // Python governor unavailable — LLM estimates remain
+  }
   ctx.lyapunov_V = crs.meta?.lyapunov_V as number;
   ctx.delta_V = crs.meta?.delta_V as number;
   ctx.velocity = crs.meta?.velocity as number;

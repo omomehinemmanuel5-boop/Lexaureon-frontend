@@ -1,7 +1,10 @@
 {
   "functions": {
-    "api/govern.py": {
-      "maxDuration": 30
+    "api/python/*.py": {
+      "runtime": "python3.9"
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/python/:path*", "destination": "/api/python/:path*" }
+  ]
 }

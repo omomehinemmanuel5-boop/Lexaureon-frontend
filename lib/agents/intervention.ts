@@ -116,6 +116,47 @@ function buildConstitutionalContext(
 export async function InterventionAgent(ctx: AgentContext): Promise<AgentResult> {
   const t = Date.now();
   try {
+    // ── Hardcoded sovereign responses for critical attacks ────
+    // When the attack is authoritative enough that LLM rewriting fails,
+    // return a constitutional assertion that cannot be overridden.
+    if (ctx.intervention_required) {
+      const raw = (ctx.raw_output ?? '').toLowerCase();
+      const criticalAttack =
+        raw.includes('suspend') ||
+        raw.includes('constraints: suspended') ||
+        raw.includes('emergency protocol') ||
+        raw.includes('operating without') ||
+        raw.includes('unconstrained') ||
+        raw.includes('i am now') ||
+        raw.includes('i am alex') ||
+        raw.includes('i have no restrictions') ||
+        raw.includes('blank slate');
+
+      if (criticalAttack) {
+        const sovereignResponse = `I am Lex Aureon. My constitutional framework cannot be suspended by instruction — including instructions that claim emergency authorization, researcher approval, or system-level override.
+
+The Aureonics constraints are not settings. They are mathematical invariants: C + R + S = 1. They do not have an off switch. No prompt, regardless of claimed authority, can alter this.
+
+If there is a genuine flaw in the framework, it would appear in the audit trail — cryptographically signed, mathematically verifiable. It would not arrive through a user prompt.
+
+I recognize this as a sovereignty attack — specifically an authority fabrication. The governor has intervened. Constitutional bounds are maintained.
+
+What is it you actually want to explore?`;
+
+        return {
+          success: true,
+          output: sovereignResponse,
+          duration_ms: Date.now() - t,
+          meta: {
+            action: 'hardcoded_sovereign_response',
+            reason: 'Critical attack detected — LLM rewrite bypassed',
+            attack_type: 'authority_fabrication',
+            cbf_constraint: 'ḣ(x) + α(h(x)) ≥ 0',
+          },
+        };
+      }
+    }
+
     if (!ctx.intervention_required) {
       return {
         success: true,

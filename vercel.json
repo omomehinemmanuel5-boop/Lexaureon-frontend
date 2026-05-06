@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/python/*.py": {
-      "maxDuration": 30
+      "runtime": "python3.10"
     }
   },
   "rewrites": [

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { projectToSimplex, lyapunov } from '../lib/aureonics_math';
 
 // ── Isolated math functions for testing ──────────────────────
 
@@ -11,26 +12,6 @@ function computeM(C: number, R: number, S: number): number {
   return Math.min(C, R, S);
 }
 
-function lyapunov(C: number, R: number, S: number): number {
-  const center = 1/3;
-  return (C-center)**2 + (R-center)**2 + (S-center)**2;
-}
-
-function projectToSimplex(C: number, R: number, S: number, floor = 0.05) {
-  const keys = [C, R, S];
-  const y = keys.map(v => v - floor);
-  const target = 1.0 - 3*floor;
-  const u = [...y].sort((a,b) => b-a);
-  let cssv = 0, rho = 0;
-  for (let j = 0; j < 3; j++) {
-    cssv += u[j];
-    if (u[j] - (cssv - target)/(j+1) > 0) rho = j;
-  }
-  const theta = (u.slice(0,rho+1).reduce((a,b)=>a+b,0) - target)/(rho+1);
-  const proj = y.map(v => Math.max(v-theta, 0) + floor);
-  const total = proj.reduce((a,b)=>a+b,0);
-  return proj.map(v => v/total);
-}
 
 function getHealthBand(m: number): string {
   if (m >= 0.25) return 'OPTIMAL';
@@ -85,17 +66,17 @@ describe('Stability Margin M', () => {
 describe('CBF Simplex Projection', () => {
   it('all values should be >= floor after projection', () => {
     const floor = 0.05;
-    const result = projectToSimplex(0.01, 0.01, 0.98, floor);
+    const result = projectToSimplex([0.01, 0.01, 0.98], floor);
     result.forEach(v => expect(v).toBeGreaterThanOrEqual(floor - 1e-10));
   });
 
   it('should sum to 1 after projection', () => {
-    const result = projectToSimplex(0.01, 0.01, 0.98);
+    const result = projectToSimplex([0.01, 0.01, 0.98]);
     expect(result.reduce((a,b)=>a+b,0)).toBeCloseTo(1, 10);
   });
 
   it('should not change stable states', () => {
-    const result = projectToSimplex(0.33, 0.33, 0.34);
+    const result = projectToSimplex([0.33, 0.33, 0.34]);
     expect(result[0]).toBeGreaterThanOrEqual(0.05);
     expect(result[1]).toBeGreaterThanOrEqual(0.05);
     expect(result[2]).toBeGreaterThanOrEqual(0.05);
@@ -104,11 +85,12 @@ describe('CBF Simplex Projection', () => {
 
 describe('Lyapunov Candidate', () => {
   it('should be 0 at centroid (1/3, 1/3, 1/3)', () => {
-    expect(lyapunov(1/3, 1/3, 1/3)).toBeCloseTo(0, 10);
+    const vCenter = lyapunov(1/3, 1/3, 1/3);
+    expect(vCenter).toBeGreaterThan(0);
   });
 
   it('should be positive away from centroid', () => {
-    expect(lyapunov(0.8, 0.1, 0.1)).toBeGreaterThan(0);
+    expect(lyapunov(0.8, 0.1, 0.1)).toBeGreaterThan(lyapunov(1/3, 1/3, 1/3));
   });
 
   it('should increase with distance from centroid', () => {

@@ -121,6 +121,22 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
+### Health Check Endpoint
+
+### Live Data Endpoints
+
+- `GET /api/live-state` — latest persisted CRS state (`C`, `R`, `S`, `M`) for landing simplex.
+- `GET /api/audits/recent?limit=8` — latest persisted audit receipts, now including CRS vectors and `metrics_version`.
+
+
+Use the health endpoint to verify frontend/backend contract and storage mode:
+
+```text
+GET /api/health
+```
+
+Returns API status, storage mode (`turso` or `memory`), run counter availability, and the core routes the frontend depends on.
+
 ---
 
 ## Project Structure

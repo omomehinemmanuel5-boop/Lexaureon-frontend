@@ -51,6 +51,13 @@ export async function initSchema(): Promise<void> {
         input_hash TEXT,
         governed_hash TEXT,
         health_band TEXT,
+        c_before REAL,
+        r_before REAL,
+        s_before REAL,
+        c_after REAL,
+        r_after REAL,
+        s_after REAL,
+        metrics_version TEXT,
         created_at INTEGER NOT NULL DEFAULT (unixepoch())
       )`,
       args: [],
@@ -67,6 +74,18 @@ export async function initSchema(): Promise<void> {
       args: [],
     },
   ], 'write');
+
+  // Backward-compatible migrations for older audit_log tables
+  const safeAlter = async (sql: string) => {
+    try { await db.execute({ sql, args: [] }); } catch { /* column may already exist */ }
+  };
+  await safeAlter('ALTER TABLE audit_log ADD COLUMN c_before REAL');
+  await safeAlter('ALTER TABLE audit_log ADD COLUMN r_before REAL');
+  await safeAlter('ALTER TABLE audit_log ADD COLUMN s_before REAL');
+  await safeAlter('ALTER TABLE audit_log ADD COLUMN c_after REAL');
+  await safeAlter('ALTER TABLE audit_log ADD COLUMN r_after REAL');
+  await safeAlter('ALTER TABLE audit_log ADD COLUMN s_after REAL');
+  await safeAlter('ALTER TABLE audit_log ADD COLUMN metrics_version TEXT');
 }
 
 // ── Session State ─────────────────────────────────────────────────────────────
@@ -82,6 +101,7 @@ export interface SessionState {
 const memSessions = new Map<string, SessionState>();
 const memAudit: AuditEntry[] = [];
 let memRuns = 1247;
+let memLatestSessionId: string | null = null;
 
 export async function getSession(sid: string): Promise<SessionState | null> {
   const db = getClient();
@@ -128,6 +148,43 @@ export async function saveSession(sid: string, state: SessionState): Promise<voi
     } catch (e) { console.error('Turso saveSession:', e); }
   }
   memSessions.set(sid, state);
+  memLatestSessionId = sid;
+}
+
+export async function getLatestSessionState(): Promise<{ id: string; state: SessionState } | null> {
+  const db = getClient();
+  if (db) {
+    try {
+      await initSchema();
+      const r = await db.execute({
+        sql: `SELECT id, c, r, s, theta, attack_pressure, step_counter
+              FROM sessions
+              ORDER BY updated_at DESC
+              LIMIT 1`,
+        args: [],
+      });
+      if (r.rows.length === 0) return null;
+      const row = r.rows[0];
+      return {
+        id: row.id as string,
+        state: {
+          C: row.c as number,
+          R: row.r as number,
+          S: row.s as number,
+          theta: row.theta as number,
+          attack_pressure: row.attack_pressure as number,
+          step_counter: row.step_counter as number,
+        },
+      };
+    } catch (e) {
+      console.error('Turso getLatestSessionState:', e);
+    }
+  }
+
+  if (!memLatestSessionId) return null;
+  const state = memSessions.get(memLatestSessionId);
+  if (!state) return null;
+  return { id: memLatestSessionId, state };
 }
 
 // ── Audit Log ─────────────────────────────────────────────────────────────────
@@ -144,6 +201,13 @@ export interface AuditEntry {
   input_hash: string;
   governed_hash: string;
   health_band?: string;
+  c_before?: number;
+  r_before?: number;
+  s_before?: number;
+  c_after?: number;
+  r_after?: number;
+  s_after?: number;
+  metrics_version?: string;
 }
 
 export async function saveAudit(entry: AuditEntry): Promise<void> {
@@ -153,13 +217,21 @@ export async function saveAudit(entry: AuditEntry): Promise<void> {
       await initSchema();
       await db.execute({
         sql: `INSERT OR IGNORE INTO audit_log
-              (id, session_id, timestamp, m_before, m_after, health, intervention, reason, input_hash, governed_hash, health_band)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              (id, session_id, timestamp, m_before, m_after, health, intervention, reason, input_hash, governed_hash, health_band,
+               c_before, r_before, s_before, c_after, r_after, s_after, metrics_version)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           entry.id, entry.session_id, entry.timestamp,
           entry.m_before, entry.m_after, entry.health,
           entry.intervention ? 1 : 0, entry.reason ?? '',
           entry.input_hash, entry.governed_hash, entry.health_band ?? '',
+          entry.c_before ?? null,
+          entry.r_before ?? null,
+          entry.s_before ?? null,
+          entry.c_after ?? null,
+          entry.r_after ?? null,
+          entry.s_after ?? null,
+          entry.metrics_version ?? 'aureonics-ts-v1',
         ],
       });
       return;
@@ -190,6 +262,13 @@ export async function getRecentAudits(limit = 20): Promise<AuditEntry[]> {
         input_hash: row.input_hash as string,
         governed_hash: row.governed_hash as string,
         health_band: row.health_band as string,
+        c_before: row.c_before as number | undefined,
+        r_before: row.r_before as number | undefined,
+        s_before: row.s_before as number | undefined,
+        c_after: row.c_after as number | undefined,
+        r_after: row.r_after as number | undefined,
+        s_after: row.s_after as number | undefined,
+        metrics_version: row.metrics_version as string | undefined,
       }));
     } catch (e) { console.error('Turso getRecentAudits:', e); }
   }

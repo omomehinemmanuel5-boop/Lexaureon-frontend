@@ -202,6 +202,13 @@ export async function runPraxis(prompt: string, session_id: string): Promise<Pra
     input_hash: receipt.input_hash as string,
     governed_hash: receipt.governed_output_hash as string,
     health_band: ctx.health_band,
+    c_before: prevState?.C,
+    r_before: prevState?.R,
+    s_before: prevState?.S,
+    c_after: ctx.crs_state?.C,
+    r_after: ctx.crs_state?.R,
+    s_after: ctx.crs_state?.S,
+    metrics_version: 'aureonics-ts-v1',
   });
 
   await incrementRuns();

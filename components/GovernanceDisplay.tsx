@@ -255,9 +255,9 @@ export default function GovernanceDisplay({ response }: GovernanceDisplayProps) 
           </div>
           <div className="flex items-start gap-2">
             <span className="text-slate-600 text-xs mt-0.5">✉️</span>
-            <a href="mailto:omomehinemmanuel5@gmail.com"
+            <a href="mailto:lexaureon@gmail.com"
               className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-              omomehinemmanuel5@gmail.com
+              lexaureon@gmail.com
             </a>
           </div>
         </div>

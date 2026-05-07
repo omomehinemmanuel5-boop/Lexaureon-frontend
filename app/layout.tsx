@@ -5,6 +5,19 @@ import { AuthProvider } from '@/app/context/AuthContext';
 export const metadata: Metadata = {
   title: 'Lex Aureon | Constitutional AI Governance',
   description: 'State-space control system for language generation. Constitutional AI governance powered by the Aureonics framework.',
+  openGraph: {
+    title: 'Lex Aureon — Govern AI. Ensure Trust. Defend Truth.',
+    description: 'Constitutional AI governance. Real-time CBF control, Lyapunov stability, cryptographic audit receipts.',
+    images: [{ url: '/logo.png', width: 1080, height: 1080 }],
+    url: 'https://lexaureon.com',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Lex Aureon — Constitutional AI Governance',
+    description: 'C+R+S=1. Every AI output governed, audited, proven.',
+    images: ['/logo.png'],
+  },
 };
 
 export const viewport = {

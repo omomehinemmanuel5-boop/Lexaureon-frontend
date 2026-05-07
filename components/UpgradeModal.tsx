@@ -8,7 +8,7 @@ interface UpgradeModalProps {
 }
 
 async function startCheckout(plan: 'pro' | 'enterprise'): Promise<string | null> {
-  if (plan === 'enterprise') return 'mailto:enterprise@lexaureon.com';
+  if (plan === 'enterprise') return 'mailto:lexaureon@gmail.com';
 
   try {
     const res = await fetch('/api/billing/checkout', {
@@ -22,7 +22,7 @@ async function startCheckout(plan: 'pro' | 'enterprise'): Promise<string | null>
     }
   } catch { /* fall through */ }
 
-  return 'mailto:billing@lexaureon.com?subject=Pro%20Upgrade%20Request';
+  return 'mailto:lexaureon@gmail.com?subject=Pro%20Upgrade%20Request';
 }
 
 export default function UpgradeModal({ onClose, callsUsed }: UpgradeModalProps) {

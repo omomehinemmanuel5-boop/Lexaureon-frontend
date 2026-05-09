@@ -4,7 +4,20 @@
  */
 
 import { getClient } from './db';
-import { randomBytes } from 'crypto';
+
+// Use Web Crypto for edge-compatible random key generation
+function generateSecureRandom(bytes: number): string {
+  const arr = new Uint8Array(bytes);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(arr);
+  } else {
+    // Node.js fallback
+    const { randomBytes } = require('crypto') as { randomBytes: (n: number) => Buffer };
+    const buf = randomBytes(bytes);
+    for (let i = 0; i < bytes; i++) arr[i] = buf[i];
+  }
+  return Buffer.from(arr).toString('base64url');
+}
 
 export interface ApiKey {
   id: string;
@@ -55,8 +68,8 @@ export async function generateApiKey(params: {
   if (!db) return null;
   await initApiKeySchema();
 
-  const id  = randomBytes(8).toString('hex');
-  const raw = randomBytes(24).toString('base64url');
+  const id  = generateSecureRandom(8).slice(0, 16);
+  const raw = generateSecureRandom(24);
   const key = `lex_sk_${raw}`;
   const plan = params.plan ?? 'free';
   const limit = PLANS[plan].limit;

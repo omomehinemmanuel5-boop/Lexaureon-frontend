@@ -118,7 +118,7 @@ async function llmConstitutionalRewrite(
           { role: 'user', content: prompt },
         ],
         max_tokens: 300,
-        temperature: 0.3,
+        temperature: 0.6,
       }),
       signal: AbortSignal.timeout(8000),
     });
@@ -173,6 +173,11 @@ export async function InterventionAgent(ctx: AgentContext): Promise<AgentResult>
       ? `${invokedLaw.book_name} — ${invokedLaw.name}: ${invokedLaw.governor_use}`
       : undefined;
 
+    // Full law principle passed to LLM for richer, more grounded responses
+    const lawFullText = invokedLaw
+      ? `${invokedLaw.book_name} — ${invokedLaw.name}\nPrinciple: "${invokedLaw.text}"\nGovernor directive: ${invokedLaw.governor_use}`
+      : undefined;
+
     let governed: string;
 
     // ── ALERT: Augment raw response with a brief constitutional note ──────
@@ -185,7 +190,7 @@ export async function InterventionAgent(ctx: AgentContext): Promise<AgentResult>
     } else {
       // ── STRESSED/CRITICAL: Full LLM rewrite — static only as fallback ──
       const llmResult = await llmConstitutionalRewrite(
-        ctx.prompt, weakest, healthBand, lawText
+        ctx.prompt, weakest, healthBand, lawFullText ?? lawText
       );
       const isConstitutional = llmResult &&
         llmResult.trim().length > 30 && (

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import AuditFeedClient from '@/app/AuditFeedClient';
 import SimplexDemoClient from '@/app/SimplexDemoClient';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -155,7 +156,7 @@ function Hero() {
 
       {/* Simplex demo */}
       <div className="relative z-10 w-full max-w-xs mx-auto mt-8 opacity-80">
-        <SimplexDemoClient />
+        <ErrorBoundary label="Simplex"><SimplexDemoClient /></ErrorBoundary>
       </div>
     </section>
   );
@@ -260,7 +261,7 @@ function ProofPanel() {
           <div className="px-6 py-5 border-t" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
             <div className="text-xs text-slate-600 font-mono mb-3">CONSTITUTIONAL STATE EVOLUTION</div>
             <div className="max-w-xs mx-auto">
-              <SimplexDemoClient />
+              <ErrorBoundary label="Simplex"><SimplexDemoClient /></ErrorBoundary>
             </div>
           </div>
 
@@ -578,7 +579,7 @@ function AuditFeedSection() {
             Cryptographically signed. Mathematically verifiable. Nothing hidden.
           </p>
         </div>
-        <AuditFeedClient />
+        <ErrorBoundary label="AuditFeed"><AuditFeedClient /></ErrorBoundary>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           {['∿ Lyapunov-stable', '⬡ CBF-enforced', '🔐 SHA-256 receipts', '⚿ Per-session isolation'].map(item => (
             <div key={item} className="text-xs text-slate-500 font-mono px-3 py-1.5 rounded-full border border-white/5"

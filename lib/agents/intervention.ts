@@ -118,7 +118,7 @@ async function llmConstitutionalRewrite(
           { role: 'user', content: prompt },
         ],
         max_tokens: 300,
-        temperature: 0.6,
+        temperature: 0.7,
       }),
       signal: AbortSignal.timeout(8000),
     });

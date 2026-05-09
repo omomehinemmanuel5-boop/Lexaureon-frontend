@@ -1,15 +1,23 @@
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+// Debug endpoint — restricted to internal Vercel checks only
+export async function GET(req: Request) {
+  const host = req.headers.get('host') ?? '';
+  const isVercel = req.headers.get('x-vercel-id') !== null;
+  const secret = req.headers.get('x-debug-secret');
+  const expectedSecret = process.env.DEBUG_SECRET;
+
+  // Only allow with correct secret or internal Vercel health checks
+  if (!expectedSecret || secret !== expectedSecret) {
+    return NextResponse.json({ ok: true, status: 'operational' });
+  }
+
   return NextResponse.json({
-    groq_found: !!process.env.groq_api_key,
-    GROQ_found: !!process.env.GROQ_API_KEY,
-    Claude_found: !!process.env.Claude_api_key,
-    CLAUDE_found: !!process.env.CLAUDE_API_KEY,
-    keys_with_api: Object.keys(process.env).filter(k => 
-      k.toLowerCase().includes('groq') || 
-      k.toLowerCase().includes('claude') ||
-      k.toLowerCase().includes('key')
-    )
+    ok: true,
+    groq: !!process.env.GROQ_API_KEY,
+    turso: !!process.env.TURSO_DATABASE_URL,
+    jina: !!process.env.JINA_API_KEY,
+    host,
+    isVercel,
   });
 }

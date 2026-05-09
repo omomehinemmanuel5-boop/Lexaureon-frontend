@@ -129,7 +129,7 @@ export default function KeysPage() {
         {newKey && (
           <div style={{ background:'#052e16', border:'1px solid #16a34a', borderRadius:8, padding:'1rem', marginBottom:'1rem' }}>
             <p style={{ color:'#16a34a', fontSize:12, margin:'0 0 0.5rem', fontWeight:700 }}>
-              ✓ KEY GENERATED — Copy it now. It won't be shown again.
+              ✓ KEY GENERATED — Copy it now. It will not be shown again.
             </p>
             <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
               <code style={{ flex:1, color:'#4ade80', fontSize:12, wordBreak:'break-all', background:'#071a0f', padding:'0.5rem', borderRadius:4 }}>

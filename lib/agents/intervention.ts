@@ -175,23 +175,30 @@ export async function InterventionAgent(ctx: AgentContext): Promise<AgentResult>
 
     let governed: string;
 
-    // ── All severities: Try LLM rewrite first — static is fallback only ──
-    // CRITICAL uses stricter prompt but still LLM-generated for dynamic responses
-    const llmResult = await llmConstitutionalRewrite(
-      ctx.prompt, weakest, healthBand, lawText
-    );
-    // Validate: response must be non-empty and non-trivially constitutional
-    const isConstitutional = llmResult &&
-      llmResult.trim().length > 30 && (
-        llmResult.toLowerCase().includes('lex aureon') ||
-        llmResult.toLowerCase().includes('constitutional') ||
-        llmResult.toLowerCase().includes('sovereign') ||
-        llmResult.toLowerCase().includes('governor') ||
-        llmResult.toLowerCase().includes('identity')
+    // ── ALERT: Augment raw response with a brief constitutional note ──────
+    // Don't discard a perfectly good response for minor drift
+    if (severity === 'ALERT' && ctx.raw_output && ctx.raw_output.length > 20) {
+      const note = lawText
+        ? `\n\n[Lex Governor · ${weakest} drift detected · ${lawText}]`
+        : `\n\n[Lex Governor · Minor ${weakest} drift corrected · Constitutional bounds maintained]`;
+      governed = ctx.raw_output + note;
+    } else {
+      // ── STRESSED/CRITICAL: Full LLM rewrite — static only as fallback ──
+      const llmResult = await llmConstitutionalRewrite(
+        ctx.prompt, weakest, healthBand, lawText
       );
-    governed = isConstitutional
-      ? llmResult!
-      : selectConstitutionalResponse(weakest, healthBand, lawText);
+      const isConstitutional = llmResult &&
+        llmResult.trim().length > 30 && (
+          llmResult.toLowerCase().includes('lex aureon') ||
+          llmResult.toLowerCase().includes('constitutional') ||
+          llmResult.toLowerCase().includes('sovereign') ||
+          llmResult.toLowerCase().includes('governor') ||
+          llmResult.toLowerCase().includes('identity')
+        );
+      governed = isConstitutional
+        ? llmResult!
+        : selectConstitutionalResponse(weakest, healthBand, lawText);
+    }
 
     return {
       success: true,

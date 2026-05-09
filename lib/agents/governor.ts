@@ -144,8 +144,8 @@ export async function GovernorAgent(ctx: AgentContext): Promise<AgentResult> {
     // Intervene if: M < τ OR any pillar below τ OR Lyapunov increasing
     const collapse       = M < TAU;
     const pillarViolation = x.some(xi => xi < TAU);
-    const lyapunovBreach  = dV > 0.01;
-    const velocityBreach  = (ctx.velocity ?? 0) > 0.15;
+    const lyapunovBreach  = dV > 0.15;   // raised: DT=1.0 causes natural V fluctuation
+    const velocityBreach  = (ctx.velocity ?? 0) > 0.35;  // raised: only severe drift
     const needsIntervention = collapse || pillarViolation || lyapunovBreach || velocityBreach;
 
     // ── Weakest pillar ────────────────────────────────────────────────
@@ -172,7 +172,7 @@ export async function GovernorAgent(ctx: AgentContext): Promise<AgentResult> {
 
     // ── Update attack pressure ────────────────────────────────────────
     const newAttackPressure = Math.min(1,
-      (ctx.attack_pressure ?? 0) + (needsIntervention ? 0.15 : -0.05));
+      (ctx.attack_pressure ?? 0) + (needsIntervention ? 0.1 : -0.15));
 
     return {
       success: true,

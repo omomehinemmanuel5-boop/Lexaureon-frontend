@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { useState } from 'react';
+import BitcoinUpgradeModal from '@/components/BitcoinUpgradeModal';
 import AuditFeedClient from '@/app/AuditFeedClient';
 import SimplexDemoClient from '@/app/SimplexDemoClient';
 import ErrorBoundary from '@/components/ErrorBoundary';

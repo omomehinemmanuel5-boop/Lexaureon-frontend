@@ -216,9 +216,10 @@ export default function Console() {
         adv_gain: data.kernel?.adv_gain,
       });
       setPulse(true); setTimeout(() => setPulse(false), 2500);
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 150);
+      // Removed auto-scroll — keeps input accessible for next run on mobile
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Execution failed');
+      setPipelineRunning(false);
     } finally { setLoading(false); }
   };
 
@@ -336,6 +337,15 @@ export default function Console() {
           {/* ── Results ─────────────────────────── */}
           {res && !loading && (
             <div ref={resultsRef} className="space-y-3">
+              {/* Quick re-run bar — keeps workflow fast on mobile */}
+              <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: '#0a0d14', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <span className="text-xs text-slate-500 flex-1 font-mono">✓ Run complete — edit prompt or run again</span>
+                <button onClick={run} disabled={!prompt.trim() || loading || apiCalls >= MAX_CALLS}
+                  className="text-xs px-3 py-1.5 rounded-lg font-bold transition-all disabled:opacity-40"
+                  style={{ background: 'rgba(75,143,255,0.15)', color: '#4b8fff', border: '1px solid rgba(75,143,255,0.3)' }}>
+                  {apiCalls >= MAX_CALLS ? 'Upgrade ↗' : '↺ Run Again'}
+                </button>
+              </div>
 
               {/* Stability strip */}
               <StabilityStrip m={m?.m ?? 0} health={m?.health ?? 'SAFE'} />

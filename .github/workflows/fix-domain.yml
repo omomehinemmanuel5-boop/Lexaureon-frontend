@@ -1,0 +1,35 @@
+name: Fix Domain Redirect
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-domain.yml'
+
+jobs:
+  fix-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set lexaureon.com to redirect to www
+        run: |
+          # First, remove existing lexaureon.com domain config
+          curl -s -X DELETE \
+            "https://api.vercel.com/v9/projects/prj_ZAcInydgb249gv8xZf1EXrIWSIc5/domains/lexaureon.com?teamId=team_R3du1XYxrloM0xx5tHKWyxMx" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json"
+          
+          sleep 3
+          
+          # Re-add with redirect to www
+          RESPONSE=$(curl -s -X POST \
+            "https://api.vercel.com/v10/projects/prj_ZAcInydgb249gv8xZf1EXrIWSIc5/domains?teamId=team_R3du1XYxrloM0xx5tHKWyxMx" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"lexaureon.com","redirect":"www.lexaureon.com","redirectStatusCode":308}')
+          
+          echo "Response: $RESPONSE"
+          
+          # Verify
+          echo "Verifying domain config..."
+          curl -s \
+            "https://api.vercel.com/v9/projects/prj_ZAcInydgb249gv8xZf1EXrIWSIc5/domains/lexaureon.com?teamId=team_R3du1XYxrloM0xx5tHKWyxMx" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" | python3 -m json.tool

@@ -109,7 +109,7 @@ export default function BitcoinUpgradeModal({ onClose }: { onClose: () => void }
               <button onClick={() => setStep('confirm')}
                 className="w-full py-3 rounded-xl font-bold text-sm transition-all"
                 style={{ background: `linear-gradient(135deg, ${G.gold}, ${G.goldL})`, color: '#07070d' }}>
-                II've Sent the Paymentapos;ve Sent the Payment →
+                I&apos;ve Sent the Payment →
               </button>
             </>
           )}

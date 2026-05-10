@@ -12,6 +12,7 @@ function generateSecureRandom(bytes: number): string {
     crypto.getRandomValues(arr);
   } else {
     // Node.js fallback
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { randomBytes } = require('crypto') as { randomBytes: (n: number) => Buffer };
     const buf = randomBytes(bytes);
     for (let i = 0; i < bytes; i++) arr[i] = buf[i];

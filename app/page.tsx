@@ -699,7 +699,7 @@ function Pricing() {
       name: 'Sovereign', price: '$19', period: '/mo', cta: 'Upgrade to Sovereign →',
       href: 'mailto:lexaureon@gmail.com?subject=Pro Upgrade - Lex Aureon',
       highlight: true, badge: 'Most Popular',
-      features: ['Unlimited governed runs', 'Full Lyapunov audit logs', 'CBF projection metrics', 'Trust receipt exports (JSON)', 'API access (coming soon)', 'Priority email support'],
+      features: ['Unlimited governed runs', 'Full Lyapunov audit logs', 'CBF projection metrics', 'Trust receipt exports (JSON)', 'API access — /api-docs', 'Priority email support'],
     },
     {
       name: 'Constitutional', price: 'Custom', cta: 'Talk to Emmanuel →',
@@ -795,7 +795,7 @@ function Footer() {
             <div className="grid grid-cols-2 gap-8 text-xs text-slate-500">
               <div>
                 <div className="font-semibold text-slate-400 mb-3">Product</div>
-                {[['Console', '/console'], ['Constitution', '/constitution'], ['Research', '/research'], ['Pricing', '#pricing']].map(([l,h]) => (
+                {[['Console', '/console'], ['Constitution', '/constitution'], ['Research', '/research'], ['API', '/api-docs'], ['Pricing', '#pricing']].map(([l,h]) => (
                   <a key={l} href={h} className="block py-1 hover:text-slate-300 transition-colors">{l}</a>
                 ))}
               </div>

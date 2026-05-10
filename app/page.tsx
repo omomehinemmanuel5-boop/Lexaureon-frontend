@@ -697,7 +697,7 @@ function Pricing() {
     },
     {
       name: 'Sovereign', price: '$19', period: '/mo', cta: 'Upgrade to Sovereign →',
-      href: 'mailto:lexaureon@gmail.com?subject=Pro Upgrade - Lex Aureon',
+      href: '#upgrade-sovereign',
       highlight: true, badge: 'Most Popular',
       features: ['Unlimited governed runs', 'Full Lyapunov audit logs', 'CBF projection metrics', 'Trust receipt exports (JSON)', 'API access — /api-docs', 'Priority email support'],
     },
@@ -752,6 +752,7 @@ function Pricing() {
                 ))}
               </ul>
               <a href={plan.href}
+                onClick={plan.href === '#upgrade-sovereign' ? (e) => { e.preventDefault(); setShowBtcModal(true); } : undefined}
                 target={plan.href.startsWith('mailto') ? undefined : undefined}
                 className="block text-center py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
                 style={plan.highlight ? {
@@ -830,8 +831,11 @@ function Footer() {
 
 /* ── Page ───────────────────────────────────────────────────── */
 export default function LandingPage() {
+  const [showBtcModal, setShowBtcModal] = useState(false);
+
   return (
     <div className="min-h-screen text-white" style={{ background: G.navy }}>
+      {showBtcModal && <BitcoinUpgradeModal onClose={() => setShowBtcModal(false)} />}
       <Nav />
       <Hero />
       <TrustBar />

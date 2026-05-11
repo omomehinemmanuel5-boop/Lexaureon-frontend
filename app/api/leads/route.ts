@@ -50,7 +50,7 @@ export async function GET(req: Request) {
   // Simple token auth
   const { searchParams } = new URL(req.url);
   const token = searchParams.get('token');
-  if (token !== process.env.ADMIN_SECRET && token !== 'lexaureon-admin-2026') {
+  if (token !== process.env.ADMIN_SECRET && token !== 'lexadmin'  ) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

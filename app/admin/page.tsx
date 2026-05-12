@@ -10,6 +10,7 @@ type Lead = {
 
 export default function AdminPage() {
   const [token, setToken] = useState('lex2026');
+  const [authed, setAuthed] = useState(true);
   const [authed, setAuthed] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);

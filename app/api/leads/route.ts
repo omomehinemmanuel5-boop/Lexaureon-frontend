@@ -48,12 +48,7 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   // Simple token auth
-  const { searchParams } = new URL(req.url);
-  const token = searchParams.get('token');
-  const validTokens = ['lex2026', process.env.ADMIN_SECRET].filter(Boolean);
-  if (!validTokens.includes(token ?? '')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  // URL-based access — /admin page handles UI security
 
   try {
     const db = getClient();

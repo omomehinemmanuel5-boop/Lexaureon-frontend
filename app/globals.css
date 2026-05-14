@@ -161,3 +161,116 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(201,168,76,0.4); }
+
+/* ── Page fade-in ─────────────────────────────────────────── */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: page-fade-in 0.35s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+/* ── Scroll-reveal (IntersectionObserver) ─────────────────── */
+.reveal-hidden {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s cubic-bezier(0.16,1,0.3,1), transform 0.6s cubic-bezier(0.16,1,0.3,1);
+}
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Card hover lift ──────────────────────────────────────── */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+}
+
+/* ── Gold CTA pulse glow ──────────────────────────────────── */
+@keyframes gold-cta-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(201,168,76,0.3), 0 0 60px rgba(201,168,76,0.1); }
+  50%       { box-shadow: 0 0 40px rgba(201,168,76,0.6), 0 0 100px rgba(201,168,76,0.25); }
+}
+.cta-pulse {
+  animation: gold-cta-pulse 2.5s ease-in-out infinite;
+}
+
+/* ── Hero animated particle field ────────────────────────── */
+@keyframes particle-drift-1 {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  33%  { transform: translate(30px, -20px) scale(1.2); opacity: 0.7; }
+  66%  { transform: translate(-15px, 30px) scale(0.9); opacity: 0.3; }
+  100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+}
+@keyframes particle-drift-2 {
+  0%   { transform: translate(0, 0); opacity: 0.3; }
+  50%  { transform: translate(-40px, -30px); opacity: 0.6; }
+  100% { transform: translate(0, 0); opacity: 0.3; }
+}
+@keyframes particle-drift-3 {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0.2; }
+  50%  { transform: translate(25px, 40px) rotate(180deg); opacity: 0.5; }
+  100% { transform: translate(0, 0) rotate(360deg); opacity: 0.2; }
+}
+@keyframes particle-drift-4 {
+  0%   { transform: translate(0, 0); opacity: 0.15; }
+  40%  { transform: translate(-20px, -50px); opacity: 0.4; }
+  80%  { transform: translate(35px, -10px); opacity: 0.25; }
+  100% { transform: translate(0, 0); opacity: 0.15; }
+}
+.particle { position: absolute; border-radius: 50%; pointer-events: none; }
+.particle-1 { animation: particle-drift-1 12s ease-in-out infinite; }
+.particle-2 { animation: particle-drift-2 18s ease-in-out infinite; }
+.particle-3 { animation: particle-drift-3 22s ease-in-out infinite; }
+.particle-4 { animation: particle-drift-4 15s ease-in-out infinite; }
+
+/* ── Terminal cursor blink ────────────────────────────────── */
+@keyframes term-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.term-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 14px;
+  background: #22c55e;
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: term-blink 1s step-end infinite;
+}
+
+/* ── Terminal scanlines overlay ───────────────────────────── */
+.terminal-scanlines::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── M ticker bar ─────────────────────────────────────────── */
+@keyframes ticker-slide {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.ticker-enter { animation: ticker-slide 0.4s ease both; }
+
+/* ── Print styles (audit page) ────────────────────────────── */
+@media print {
+  nav, header, .no-print { display: none !important; }
+  body { background: white !important; color: black !important; }
+  .print-white { background: white !important; color: black !important; }
+  .print-show { display: block !important; }
+}

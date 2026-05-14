@@ -97,7 +97,7 @@ function Hero() {
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border mb-8 text-xs font-mono"
           style={{ borderColor: `${G.gold}40`, background: `${G.gold}08`, color: G.gold }}>
           <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: G.gold }}/>
-          Peer-Reviewed · Aureonics Framework · Live System
+          Published Research · Aureonics Framework · Live System
         </div>
 
         {/* Main headline */}
@@ -172,6 +172,7 @@ function TrustBar() {
     { icon: '🔐', label: 'SHA-256 Audit Receipts' },
     { icon: '🇳🇬', label: 'Independent Research' },
     { icon: '⚡', label: 'Live System' },
+    { icon: '🧠', label: 'z_traj Stateful Memory' },
   ];
   return (
     <div className="border-y border-white/5 py-4 overflow-hidden"
@@ -382,7 +383,7 @@ function MathSection() {
         <div className="grid sm:grid-cols-3 gap-4 mb-6">
           {[
             { formula: 'M = min(C, R, S)', desc: 'Stability margin — weakest pillar determines safety', color: G.gold },
-            { formula: 'M < τ = 0.08', desc: 'Constitutional collapse threshold — governor fires', color: '#ef4444' },
+            { formula: 'M < τ_floor = 0.05', desc: 'Constitutional collapse threshold — τ_floor=0.05 fires governor, τ_recovery=0.15 confirms stability', color: '#ef4444' },
             { formula: 'ḣ(x) + α·h(x) ≥ 0', desc: 'CBF constraint — always enforced on simplex', color: G.C },
           ].map(({ formula, desc, color }) => (
             <div key={formula} className="rounded-xl border p-4"
@@ -450,7 +451,7 @@ function AgenticSection() {
     {
       num: "03", agent: "Governor Agent",
       role: "Decides intervention. Cannot generate or audit.",
-      article: "Trigger: R collapse (ε_R=0.10, τ=0.08)",
+      article: "Trigger: R collapse (ε_R=0.10, τ_floor=0.05)",
       color: "#f59e0b",
       sample: "min(C,R,S)=0.22 < τ → INTERVENE",
     },
@@ -609,7 +610,7 @@ function Origin() {
 
         <div className="mb-8 text-sm text-slate-500">
           — Emmanuel King &nbsp;·&nbsp; Principal Researcher, Aureonics
-          <br />Lagos, Nigeria · 2025
+          <br />Lagos, Nigeria · 2026
         </div>
 
         <div className="flex flex-wrap justify-center gap-3 mb-8">
@@ -662,7 +663,7 @@ function Research() {
               <h3 className="text-base font-bold text-white mb-1">
                 Aureonics: Constitutional Triadic Framework for Stable Adaptive Intelligence
               </h3>
-              <p className="text-sm text-slate-500 mb-3">Emmanuel King · Independent Research · 2025</p>
+              <p className="text-sm text-slate-500 mb-3">Emmanuel King · Independent Research · 2026</p>
               <div className="space-y-1.5">
                 {[
                   ['DOI', 'doi.org/10.5281/zenodo.18944243', 'https://doi.org/10.5281/zenodo.18944243'],
@@ -704,7 +705,7 @@ function Footer() {
               <p className="text-xs text-slate-600 max-w-xs leading-relaxed">
                 Constitutional AI Governance. Built on Aureonics. C+R+S=1.
               </p>
-              <p className="text-xs text-slate-700 mt-2">Lagos, Nigeria · 2025</p>
+              <p className="text-xs text-slate-700 mt-2">Lagos, Nigeria · 2026</p>
             </div>
             <div className="grid grid-cols-2 gap-8 text-xs text-slate-500">
               <div>
@@ -733,8 +734,8 @@ function Footer() {
             style={{ background: `linear-gradient(90deg, transparent, ${G.gold}40, transparent)` }}/>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-700">
-            <span>© 2025 Aureonics · Lex Aureon Constitution v1.0 · Immutable</span>
-            <span className="font-mono">SovereignKernel-v2-TS · Lyapunov-stable · CBF-enforced</span>
+            <span>© 2026 Aureonics · Lex Aureon Constitution v1.0 · Immutable</span>
+            <span className="font-mono">PRAXIS v1.0 · z_traj-enabled · Lyapunov-stable · CBF-enforced</span>
           </div>
         </div>
       </div>
@@ -757,6 +758,51 @@ export default function LandingPage() {
       <Origin />
       <Research />
       <PricingSection />
+      <section className="py-16 px-5" style={{ background: G.navyL }}>
+        <div className="max-w-3xl mx-auto">
+          <div className="rounded-2xl border p-8 sm:p-10 relative overflow-hidden"
+            style={{ borderColor: `${G.gold}30`, background: `${G.gold}06` }}>
+            <div className="absolute top-0 right-0 w-64 h-64 opacity-[0.04] rounded-full"
+              style={{ background: `radial-gradient(circle, ${G.gold} 0%, transparent 70%)`, transform: 'translate(30%, -30%)' }}/>
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+              <div className="flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center text-2xl"
+                style={{ background: `${G.gold}15`, border: `1px solid ${G.gold}30` }}>⚖️</div>
+              <div className="flex-1">
+                <div className="text-xs font-mono uppercase tracking-widest mb-1" style={{ color: G.gold }}>
+                  Governance Audit · One-Time Engagement
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white mb-2">
+                  Constitutional Audit for Your AI System
+                </h3>
+                <p className="text-sm text-slate-400 leading-relaxed mb-4 max-w-xl">
+                  A hands-on audit of your LLM pipeline against the Aureonics constitutional framework —
+                  CRS invariant analysis, Lyapunov stability assessment, adversarial stress-test,
+                  and a signed audit report with remediation guidance.
+                </p>
+                <div className="flex flex-wrap gap-2 mb-5">
+                  {['CRS Invariant Analysis', 'Lyapunov Stability Report', 'Adversarial Stress-Test', 'Signed Audit Receipt', '2-week turnaround'].map(tag => (
+                    <span key={tag} className="text-xs font-mono px-2.5 py-1 rounded-full border"
+                      style={{ borderColor: `${G.gold}25`, background: `${G.gold}08`, color: G.gold }}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div>
+                    <span className="text-3xl font-black text-white">$500</span>
+                    <span className="text-slate-500 text-sm ml-2">one-time</span>
+                  </div>
+                  <a href="mailto:lexaureon@gmail.com?subject=Governance%20Audit%20Request"
+                    className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
+                    style={{ background: `linear-gradient(135deg, ${G.gold}, ${G.goldL})`, color: '#07070d' }}>
+                    Request Audit →
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
       <Footer />
     </div>
   );

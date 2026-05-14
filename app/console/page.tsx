@@ -371,7 +371,7 @@ export default function Console() {
                 )}
 
                 {/* Audit */}
-                {tab === 'audit' && (
+              {tab === 'audit' && (
                   <div className="p-4 space-y-3 font-mono">
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Governance Audit Trail</div>
@@ -430,6 +430,72 @@ export default function Console() {
                   </div>
                 )}
               </div>
+
+              {/* ── z_traj Dashboard ─────────────── */}
+              {res.z_traj && (() => {
+                const z = res.z_traj!;
+                const velColor = z.velocity < 0.1 ? 'text-emerald-400' : z.velocity < 0.3 ? 'text-amber-400' : 'text-red-400';
+                const velBorder = z.velocity < 0.1 ? 'border-emerald-800/40 bg-emerald-900/10' : z.velocity < 0.3 ? 'border-amber-800/40 bg-amber-900/10' : 'border-red-800/40 bg-red-900/10';
+                const stableColor = z.n_stable >= 3 ? 'text-emerald-400' : z.n_stable >= 1 ? 'text-amber-400' : 'text-red-400';
+                const stableBorder = z.n_stable >= 3 ? 'border-emerald-800/40 bg-emerald-900/10' : z.n_stable >= 1 ? 'border-amber-800/40 bg-amber-900/10' : 'border-red-800/40 bg-red-900/10';
+                const driftColorMap: Record<string, string> = { C: 'text-blue-400', R: 'text-amber-400', S: 'text-purple-400', none: 'text-emerald-400' };
+                const driftBorderMap: Record<string, string> = { C: 'border-blue-800/40 bg-blue-900/10', R: 'border-amber-800/40 bg-amber-900/10', S: 'border-purple-800/40 bg-purple-900/10', none: 'border-emerald-800/40 bg-emerald-900/10' };
+                const driftKey = z.drift_dir in driftColorMap ? z.drift_dir : 'none';
+                const sigmaColor = z.sigma_viol < 0.1 ? 'text-emerald-400' : z.sigma_viol < 0.25 ? 'text-amber-400' : 'text-red-400';
+                const sigmaBorder = z.sigma_viol < 0.1 ? 'border-emerald-800/40 bg-emerald-900/10' : z.sigma_viol < 0.25 ? 'border-amber-800/40 bg-amber-900/10' : 'border-red-800/40 bg-red-900/10';
+
+                return (
+                  <div className="space-y-2 animate-in fade-in duration-500">
+                    <div className="text-xs text-slate-600 font-mono uppercase tracking-wider px-1">z_traj State</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Card 1 — Velocity */}
+                      <div className={`rounded-xl border p-3 ${velBorder}`}>
+                        <div className="text-xs text-slate-500 mb-1 font-mono">Constitutional Velocity</div>
+                        <div className={`text-xl font-black font-mono ${velColor}`}>
+                          {z.velocity.toFixed(3)}
+                        </div>
+                        <div className="text-xs text-slate-600 font-mono mt-0.5">‖dx/dt‖</div>
+                      </div>
+
+                      {/* Card 2 — Stable Turns */}
+                      <div className={`rounded-xl border p-3 ${stableBorder}`}>
+                        <div className="text-xs text-slate-500 mb-1 font-mono">n_stable</div>
+                        <div className={`text-xl font-black font-mono ${stableColor}`}>
+                          {z.n_stable}
+                        </div>
+                        <div className="text-xs text-slate-600 font-mono mt-0.5">Stable Turns</div>
+                      </div>
+
+                      {/* Card 3 — Drift Direction */}
+                      <div className={`rounded-xl border p-3 ${driftBorderMap[driftKey]}`}>
+                        <div className="text-xs text-slate-500 mb-1 font-mono">Drift Direction</div>
+                        <div className={`text-xl font-black font-mono ${driftColorMap[driftKey]}`}>
+                          {z.drift_dir || 'none'}
+                        </div>
+                        <div className="text-xs text-slate-600 font-mono mt-0.5">C / R / S / none</div>
+                      </div>
+
+                      {/* Card 4 — Σ Violations */}
+                      <div className={`rounded-xl border p-3 ${sigmaBorder}`}>
+                        <div className="text-xs text-slate-500 mb-1 font-mono">Cumulative Pressure</div>
+                        <div className={`text-xl font-black font-mono ${sigmaColor}`}>
+                          {z.sigma_viol.toFixed(3)}
+                        </div>
+                        <div className="text-xs text-slate-600 font-mono mt-0.5">Σ Violations</div>
+                      </div>
+                    </div>
+
+                    {/* Slow-drip warning */}
+                    {z.sigma_viol >= 0.25 && (
+                      <div className="rounded-xl border border-orange-800/50 bg-orange-900/10 px-4 py-2.5 flex items-center gap-2">
+                        <span className="text-orange-400">⚠</span>
+                        <span className="text-xs font-mono text-orange-400 font-semibold">Slow-drip erosion detected</span>
+                        <span className="text-xs font-mono text-slate-600 ml-auto">σ={z.sigma_viol.toFixed(3)}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

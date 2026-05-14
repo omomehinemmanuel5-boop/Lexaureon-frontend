@@ -63,6 +63,12 @@ export interface GovernanceResponse {
   timestamp?: number;
   upgrade_required?: boolean;
   trust_receipt?: TrustReceipt | null;
+  z_traj?: {
+    velocity: number;
+    n_stable: number;
+    drift_dir: string;
+    sigma_viol: number;
+  };
 }
 
 export interface PreEvalResult {

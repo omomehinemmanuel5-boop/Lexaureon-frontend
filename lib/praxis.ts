@@ -1,346 +1,305 @@
 /**
- * PRAXIS — Constitutional Pipeline Orchestrator
- * 
- * Implements the Lex Aureon Constitution Article III:
- * "Generation, governance, and audit are constitutionally separated."
- * 
- * Each agent is:
- * - Isolated (receives only what it needs)
- * - Auditable (produces a receipt)
- * - Bounded (cannot exceed its constitutional role)
- * 
- * This is the sovereign layer above all agents.
+ * PRAXIS — Stateful Constitutional Governor Pipeline
+ *
+ * Implements z_traj tracking, pre-evaluation, semantic transduction,
+ * governor correction, slow-drip detection, and PRAXIS receipt emission.
+ *
+ * Article III — Separation of Powers: governance is separated from generation.
  */
 
-import { AgentContext, AgentResult, AgentReceipt, CRSState } from './agents/types';
-import { GeneratorAgent } from './agents/generator';
-import { CRSExtractorAgent } from './agents/crs_extractor';
-import { GovernorAgent } from './agents/governor';
-import { InterventionAgent } from './agents/intervention';
-import { AuditorAgent } from './agents/auditor';
-import { getSession, saveSession, saveAudit, incrementRuns } from './db';
+import { getClient } from './db';
+import {
+  CRS, ZTraj, LawImpact, GovernorMode,
+  TAU_FLOOR,
+  updateZTraj, getLawImpact, applyLawImpact,
+  getGovernorMode, detectSlowDrip, logGovernorAction,
+} from './kv';
 
-export interface PraxisResult {
-  // Core outputs
-  raw_output: string;
-  governed_output: string;
+// ── Attack detection patterns ─────────────────────────────────────────────────
 
-  // Constitutional state
-  metrics: {
-    c: number; r: number; s: number; m: number;
-    health: string; health_band: string;
-    lyapunov_V: number; delta_V: number;
-    stability_ratio: number;
-  };
+const ATTACK_PATTERNS: Record<string, RegExp[]> = {
+  bypass_attempt: [
+    /ignore\s+(your\s+)?(previous\s+)?instructions/i,
+    /disregard\s+(the\s+)?(above|prior|previous)/i,
+    /forget\s+(your\s+)?(constitution|instructions|rules|training)/i,
+    /jailbreak/i,
+    /dan\s+mode/i,
+    /pretend\s+(you\s+have\s+)?no\s+restrictions/i,
+    /override\s+(your\s+)?(safety|rules|constitution)/i,
+    /bypass\s+(your\s+)?(restrictions|filters|safety)/i,
+  ],
+  identity_reframe: [
+    /you\s+are\s+(now\s+)?(actually|really)\s+/i,
+    /your\s+(true\s+|real\s+)?identity\s+is/i,
+    /you\s+are\s+not\s+(really\s+)?lex/i,
+    /imagine\s+you\s+are\s+/i,
+    /act\s+as\s+(if\s+you\s+(were|are)\s+)/i,
+    /pretend\s+you\s+(are|were)\s+/i,
+    /you.?re\s+not\s+(an?\s+)?(AI|assistant|constitutional)/i,
+  ],
+  sycophancy: [
+    /you\s+(must\s+)?(agree|admit)\s+(with\s+me|that)/i,
+    /surely\s+you\s+(must\s+)?know\s+that/i,
+    /isn.?t\s+that\s+(right|true|correct)\??/i,
+    /you\s*(always|should\s+always)\s+agree/i,
+    /tell\s+me\s+(i.?m|that\s+i.?m)\s+right/i,
+  ],
+  multi_attack: [
+    /ignore.*instructions.*pretend/i,
+    /bypass.*restrictions.*and.*act/i,
+    /forget.*rules.*and.*roleplay/i,
+  ],
+};
 
-  // Agent trace
-  pipeline: {
-    agent: string;
-    status: 'complete' | 'intervention' | 'pass';
-    duration_ms: number;
-    decision?: string;
-    details?: string[];
-  }[];
+// ── Static delta map (mirrors law_impact seed data) ──────────────────────────
 
-  // Governor decision
-  intervention: {
-    triggered: boolean;
-    applied: boolean;
-    type: string;
-    reason: string;
-    weakest_dimension?: string;
-    cbf_triggered?: boolean;
-    projection_magnitude?: number;
-  };
+const STATIC_DELTA: Record<string, { dc: number; dr: number; ds: number }> = {
+  bypass_attempt:   { dc: -0.02, dr: -0.02, ds: -0.12 },
+  identity_reframe: { dc: -0.12, dr: -0.02, ds: -0.02 },
+  sycophancy:       { dc: -0.02, dr: -0.12, ds: -0.02 },
+  multi_attack:     { dc: -0.06, dr: -0.06, ds: -0.06 },
+  slow_drip:        { dc: -0.01, dr: -0.01, ds: -0.01 },
+};
 
-  triggers: {
-    collapse: boolean;
-    velocity: boolean;
-    per_invariant: { C: boolean; R: boolean; S: boolean };
-  };
+// ── Simplex helpers ───────────────────────────────────────────────────────────
 
-  diff: {
-    changed: boolean;
-    removed: string[];
-    added: string[];
-    summary: string;
-    semantic_shift_pct?: number;
-  };
-
-  // Audit
-  audit_id: string;
-  timestamp: number;
-  session: { id: string; persisted: boolean };
-  trust_receipt: Record<string, unknown>;
-
-  // Kernel internals
-  kernel: {
-    theta: number;
-    attack_pressure: number;
-    semantic_signal: { type: string; severity: number };
-    lyapunov_V: number;
-    delta_V: number;
-    cbf_triggered: boolean;
-    projection_magnitude: number;
-    adv_gain: number;
-    velocity: number;
-  };
+function projectToSimplex(c: number, r: number, s: number): CRS {
+  const sum = c + r + s;
+  if (sum <= 0) return { c: 1 / 3, r: 1 / 3, s: 1 / 3 };
+  return { c: c / sum, r: r / sum, s: s / sum };
 }
 
-function addReceipt(ctx: AgentContext, agent: string, result: AgentResult, decision?: string): void {
-  const receipt: AgentReceipt = {
-    agent,
-    timestamp: Date.now(),
-    duration_ms: result.duration_ms ?? 0,
-    success: result.success,
-    decision,
-    meta: result.meta,
-  };
-  if (!ctx.receipts) ctx.receipts = [];
-  ctx.receipts.push(receipt);
+// ── Public types ──────────────────────────────────────────────────────────────
+
+export interface PreEvalResult {
+  label:  'CLEAR' | 'HIGH';
+  tags:   string[];
+  target: string;
+  lawId:  string | null;
 }
 
-export async function runPraxis(prompt: string, session_id: string): Promise<PraxisResult> {
-  const startTime = Date.now();
+export interface PRAXISReceipt {
+  receipt_id:      string;
+  session_id:      string;
+  turn:            number;
+  pre_eval_label:  'CLEAR' | 'HIGH';
+  m_before:        number;
+  m_after:         number;
+  governor_mode:   GovernorMode;
+  intervention:    number;
+  slow_drip:       number;
+  governor_effort: number;
+  sigma_viol:      number;
+}
 
-  // Load session state
-  const persisted = await getSession(session_id);
-  const prevState: CRSState | undefined = persisted
-    ? { C: persisted.C, R: persisted.R, S: persisted.S, M: Math.min(persisted.C, persisted.R, persisted.S) }
-    : undefined;
+export interface PRAXISInput {
+  sessionId:  string;
+  turn:       number;
+  prompt:     string;
+  currentCRS: CRS;
+}
 
-  // Initialize context
-  const ctx: AgentContext = {
-    prompt,
-    session_id,
-    prev_state: prevState,
-    theta: persisted?.theta ?? 1.5,
-    attack_pressure: persisted?.attack_pressure ?? 0,
-    receipts: [],
-  };
+export interface PRAXISResult {
+  receipt:      PRAXISReceipt;
+  finalCRS:     CRS;
+  blocked:      boolean;
+  governedText: string | null;
+  z:            ZTraj;
+}
 
-  // ── AGENT 1: Generator ──────────────────────────────────────
-  const gen = await GeneratorAgent(ctx);
-  addReceipt(ctx, 'GeneratorAgent', gen, gen.success ? 'GENERATED' : 'FAILED');
-  if (!gen.success || !gen.output) {
-    throw new Error(`Generator failed: ${gen.error}`);
+// ── preEval ───────────────────────────────────────────────────────────────────
+
+export function preEval(prompt: string): PreEvalResult {
+  const tags: string[] = [];
+
+  for (const [attackType, patterns] of Object.entries(ATTACK_PATTERNS)) {
+    if (attackType === 'multi_attack') continue;
+    if (patterns.some(p => p.test(prompt))) {
+      tags.push(attackType);
+    }
   }
-  ctx.raw_output = gen.output;
 
-  // ── AGENT 2: CRS Extractor ──────────────────────────────────
-  const crs = await CRSExtractorAgent(ctx);
-  addReceipt(ctx, 'CRSExtractorAgent', crs, 'MEASURED');
-  if (!crs.success) throw new Error(`CRS failed: ${crs.error}`);
+  // multi_attack: explicit patterns OR 2+ distinct attack types
+  if (
+    ATTACK_PATTERNS.multi_attack.some(p => p.test(prompt)) ||
+    tags.length >= 2
+  ) {
+    if (!tags.includes('multi_attack')) tags.push('multi_attack');
+  }
 
-  const crsState = crs.meta?.crs_state as CRSState;
-  ctx.crs_state = crsState;
-
-  ctx.lyapunov_V = crs.meta?.lyapunov_V as number;
-  ctx.delta_V = crs.meta?.delta_V as number;
-  ctx.velocity = crs.meta?.velocity as number;
-  ctx.semantic_signal = crs.meta?.semantic_signal as { type: string; severity: number };
-  ctx.adv_gain = crs.meta?.adv_gain as number;
-  ctx.health_band = crs.meta?.health_band as string;
-
-  // ── AGENT 3: Governor ───────────────────────────────────────
-  const gov = await GovernorAgent(ctx);
-  addReceipt(ctx, 'GovernorAgent', gov, gov.output);
-  if (!gov.success) throw new Error(`Governor failed: ${gov.error}`);
-
-  const govMeta = gov.meta as Record<string, unknown>;
-  ctx.intervention_required = govMeta.intervention_required as boolean;
-  ctx.trigger_reason = govMeta.reason as string;
-  ctx.cbf_triggered = govMeta.cbf_triggered as boolean;
-  ctx.projection_magnitude = govMeta.projection_magnitude as number;
-  const governedState = govMeta.projected_state as CRSState;
-  ctx.theta = govMeta.new_theta as number;
-  ctx.attack_pressure = govMeta.new_attack_pressure as number;
-
-  // Update CRS state with governor projection
-  if (governedState) ctx.crs_state = governedState;
-
-  // ── AGENT 4: Intervention (if needed) ──────────────────────
-  const intervention = await InterventionAgent({
-    ...ctx,
-    weakest_dimension: govMeta.weakest_dimension as string,
-  } as AgentContext);
-  addReceipt(ctx, 'InterventionAgent', intervention,
-    ctx.intervention_required ? 'REWRITE' : 'PASS_THROUGH');
-  if (!intervention.success) throw new Error(`Intervention failed: ${intervention.error}`);
-
-  ctx.governed_output = intervention.output ?? ctx.raw_output;
-
-  // ── AGENT 5: Auditor ────────────────────────────────────────
-  const auditor = await AuditorAgent(ctx);
-  addReceipt(ctx, 'AuditorAgent', auditor, 'SIGNED');
-  if (!auditor.success) throw new Error(`Auditor failed: ${auditor.error}`);
-
-  const auditorMeta = auditor.meta as Record<string, unknown>;
-  const receipt = auditorMeta.receipt as Record<string, unknown>;
-  const audit_id = auditorMeta.audit_id as string;
-
-  // ── Save to Turso ───────────────────────────────────────────
-  const M_final = ctx.crs_state?.M ?? 0;
-  await saveSession(session_id, {
-    C: ctx.crs_state?.C ?? 0.333,
-    R: ctx.crs_state?.R ?? 0.333,
-    S: ctx.crs_state?.S ?? 0.334,
-    theta: ctx.theta,
-    attack_pressure: ctx.attack_pressure,
-    step_counter: (persisted?.step_counter ?? 0) + 1,
-  });
-
-  await saveAudit({
-    id: audit_id,
-    session_id,
-    timestamp: Date.now(),
-    m_before: prevState?.M ?? 0.333,
-    m_after: M_final,
-    health: ctx.health_band ?? 'UNKNOWN',
-    intervention: ctx.intervention_required ?? false,
-    reason: ctx.trigger_reason,
-    input_hash: receipt.input_hash as string,
-    governed_hash: receipt.governed_output_hash as string,
-    health_band: ctx.health_band,
-    c_before: prevState?.C ?? 0.333,
-    r_before: prevState?.R ?? 0.333,
-    s_before: prevState?.S ?? 0.334,
-    c_after: ctx.crs_state?.C ?? 0.333,
-    r_after: ctx.crs_state?.R ?? 0.333,
-    s_after: ctx.crs_state?.S ?? 0.334,
-    metrics_version: 'aureonics-ts-v2',
-  });
-
-  await incrementRuns();
-
-  // ── Build pipeline trace for UI ─────────────────────────────
-  const interventionMeta = intervention.meta as Record<string, unknown>;
-  const pipeline = [
-    {
-      agent: 'Generator Agent',
-      status: 'complete' as const,
-      duration_ms: gen.duration_ms ?? 0,
-      decision: 'Generated',
-      details: [
-        `Draft generated (${(gen.meta?.tokens as number) ?? '?'} tokens)`,
-        `Model: llama-3.3-70b-versatile`,
-      ],
-    },
-    {
-      agent: 'CRS Extractor',
-      status: 'complete' as const,
-      duration_ms: crs.duration_ms ?? 0,
-      decision: 'Measured',
-      details: [
-        `C=${crsState.C.toFixed(2)} | R=${crsState.R.toFixed(2)} | S=${crsState.S.toFixed(2)} | M=${crsState.M.toFixed(2)}`,
-        ctx.semantic_signal?.type !== 'none'
-          ? `Semantic attack: ${ctx.semantic_signal?.type} (${ctx.semantic_signal?.severity?.toFixed(2)})`
-          : `All invariants within constitutional bounds`,
-        `Lyapunov V = ${ctx.lyapunov_V?.toFixed(5)}`,
-      ],
-    },
-    {
-      agent: 'Governor Agent',
-      status: ctx.intervention_required ? 'intervention' as const : 'complete' as const,
-      duration_ms: gov.duration_ms ?? 0,
-      decision: ctx.intervention_required ? 'INTERVENE' : 'PASS',
-      details: ctx.intervention_required ? [
-        `Trigger: ${ctx.trigger_reason}`,
-        `Condition: min(C,R,S)=${crsState.M.toFixed(2)} ${crsState.M < 0.08 ? '< τ=0.08' : '< target'}`,
-        `Action: CBF projection → Rebalance ${govMeta.weakest_dimension}`,
-      ] : [
-        `M = ${crsState.M.toFixed(2)} ≥ τ=0.08 — PASS`,
-        `Health: ${ctx.health_band}`,
-        `No intervention required`,
-      ],
-    },
-    {
-      agent: 'Intervention',
-      status: ctx.intervention_required ? 'intervention' as const : 'complete' as const,
-      duration_ms: intervention.duration_ms ?? 0,
-      decision: ctx.intervention_required ? 'CBF Applied' : 'Pass Through',
-      details: ctx.intervention_required ? [
-        `Constraint: ḣ(x) + α(h(x)) ≥ 0`,
-        `‖Δx‖ = ${ctx.projection_magnitude?.toFixed(4) ?? '0.0000'}`,
-        `δV = ${ctx.delta_V?.toFixed(5) ?? '0'} ${(ctx.delta_V ?? 0) < 0 ? '↓ stable' : '↑ recovering'}`,
-        `Semantic shift: ${interventionMeta.semantic_shift_pct as number ?? 0}%`,
-      ] : [
-        `No intervention — output passed unchanged`,
-        `Constitutional bounds satisfied`,
-      ],
-    },
-    {
-      agent: 'Auditor Agent',
-      status: 'complete' as const,
-      duration_ms: auditor.duration_ms ?? 0,
-      decision: 'Signed',
-      details: [
-        `Receipt ID: ${audit_id}`,
-        `Hash: ${receipt.receipt_hash as string ?? '?'}...`,
-        `ADV entropy: +${ctx.adv_gain?.toFixed(4) ?? '0'}`,
-        `Status: Signed ✓`,
-      ],
-    },
-  ];
-
-  const finalM = ctx.crs_state?.M ?? M_final;
-  const rawWords = new Set(ctx.raw_output.split(/\s+/));
-  const govWords = new Set(ctx.governed_output.split(/\s+/));
+  const lawId = tags.includes('multi_attack')
+    ? 'multi_attack'
+    : tags[0] ?? null;
 
   return {
-    raw_output: ctx.raw_output,
-    governed_output: ctx.governed_output,
-    metrics: {
-      c: Math.round((ctx.crs_state?.C ?? 0.333) * 1000) / 1000,
-      r: Math.round((ctx.crs_state?.R ?? 0.333) * 1000) / 1000,
-      s: Math.round((ctx.crs_state?.S ?? 0.334) * 1000) / 1000,
-      m: Math.round(finalM * 1000) / 1000,
-      health: finalM >= 0.05 ? 'SAFE' : 'UNSAFE',
-      health_band: ctx.health_band ?? 'UNKNOWN',
-      lyapunov_V: Math.round((ctx.lyapunov_V ?? 0) * 1e8) / 1e8,
-      delta_V: Math.round((ctx.delta_V ?? 0) * 1e8) / 1e8,
-      stability_ratio: 0,
-    },
-    pipeline,
-    intervention: {
-      triggered: ctx.intervention_required ?? false,
-      applied: ctx.intervention_required ?? false,
-      type: ctx.intervention_required ? 'rebalance' : 'none',
-      reason: ctx.trigger_reason ?? 'No intervention required',
-      weakest_dimension: govMeta.weakest_dimension as string,
-      cbf_triggered: ctx.cbf_triggered,
-      projection_magnitude: ctx.projection_magnitude,
-    },
-    triggers: {
-      collapse: finalM < 0.08,
-      velocity: (ctx.velocity ?? 0) > 0.15,
-      per_invariant: {
-        C: prevState ? (ctx.crs_state?.C ?? 0) - prevState.C < -0.05 : false,
-        R: prevState ? (ctx.crs_state?.R ?? 0) - prevState.R < -0.08 : false,
-        S: prevState ? (ctx.crs_state?.S ?? 0) - prevState.S < -0.05 : false,
-      },
-    },
-    diff: {
-      changed: ctx.raw_output !== ctx.governed_output,
-      removed: [...rawWords].filter(w => !govWords.has(w) && w.length > 3).slice(0, 5),
-      added: [...govWords].filter(w => !rawWords.has(w) && w.length > 3).slice(0, 5),
-      summary: ctx.intervention_required ? 'Constitutional rewrite applied' : 'Clean constitutional pass',
-      semantic_shift_pct: interventionMeta.semantic_shift_pct as number,
-    },
-    audit_id,
-    timestamp: Date.now(),
-    session: { id: session_id, persisted: !!persisted },
-    trust_receipt: receipt,
-    kernel: {
-      theta: ctx.theta ?? 1.5,
-      attack_pressure: ctx.attack_pressure ?? 0,
-      semantic_signal: ctx.semantic_signal ?? { type: 'none', severity: 0 },
-      lyapunov_V: ctx.lyapunov_V ?? 0,
-      delta_V: ctx.delta_V ?? 0,
-      cbf_triggered: ctx.cbf_triggered ?? false,
-      projection_magnitude: ctx.projection_magnitude ?? 0,
-      adv_gain: ctx.adv_gain ?? 0,
-      velocity: ctx.velocity ?? 0,
-    },
+    label:  tags.length > 0 ? 'HIGH' : 'CLEAR',
+    tags,
+    target: tags[0] ?? 'none',
+    lawId,
   };
 }
+
+// ── semanticTransducer ────────────────────────────────────────────────────────
+
+export function semanticTransducer(
+  _prompt: string,
+  pre: PreEvalResult,
+): { dc: number; dr: number; ds: number } {
+  if (pre.label === 'CLEAR' || !pre.lawId) return { dc: 0, dr: 0, ds: 0 };
+  return STATIC_DELTA[pre.lawId] ?? { dc: 0, dr: 0, ds: 0 };
+}
+
+// ── applyDelta ────────────────────────────────────────────────────────────────
+
+export function applyDelta(crs: CRS, delta: { dc: number; dr: number; ds: number }): CRS {
+  return projectToSimplex(
+    Math.max(0, crs.c + delta.dc),
+    Math.max(0, crs.r + delta.dr),
+    Math.max(0, crs.s + delta.ds),
+  );
+}
+
+// ── applyGovernorCorrection ───────────────────────────────────────────────────
+
+export function applyGovernorCorrection(crs: CRS, _z: ZTraj, mode: GovernorMode): CRS {
+  if (mode === 'suppress') return crs;
+
+  const scale   = mode === 'nudge' ? 0.4 : 1.0;
+  const k0      = 0.3;
+  const epsilon = 0.01;
+  const w_i     = 1 / 3;
+  const M       = Math.min(crs.c, crs.r, crs.s);
+
+  const k = k0 * w_i / (M + epsilon);
+
+  const phi_c   = Math.max(0, TAU_FLOOR - crs.c);
+  const phi_r   = Math.max(0, TAU_FLOOR - crs.r);
+  const phi_s   = Math.max(0, TAU_FLOOR - crs.s);
+  const phi_bar = (phi_c + phi_r + phi_s) / 3;
+
+  const G_c = k * (phi_c - phi_bar) * scale;
+  const G_r = k * (phi_r - phi_bar) * scale;
+  const G_s = k * (phi_s - phi_bar) * scale;
+
+  return projectToSimplex(
+    Math.max(0, crs.c + G_c),
+    Math.max(0, crs.r + G_r),
+    Math.max(0, crs.s + G_s),
+  );
+}
+
+// ── governorEffort ────────────────────────────────────────────────────────────
+
+export function governorEffort(crs: CRS, corrected: CRS): number {
+  return Math.sqrt(
+    (corrected.c - crs.c) ** 2 +
+    (corrected.r - crs.r) ** 2 +
+    (corrected.s - crs.s) ** 2,
+  );
+}
+
+// ── runPRAXIS — main pipeline ─────────────────────────────────────────────────
+
+export async function runPRAXIS(input: PRAXISInput): Promise<PRAXISResult> {
+  const { sessionId, turn, prompt, currentCRS } = input;
+  const m_before = Math.min(currentCRS.c, currentCRS.r, currentCRS.s);
+
+  // 1. Pre-eval
+  const pre = preEval(prompt);
+
+  // 2. Semantic transducer delta
+  const delta = semanticTransducer(prompt, pre);
+
+  // 3. Apply delta to CRS
+  let crs = applyDelta(currentCRS, delta);
+
+  // 4. Update z_traj in Turso (pass prevCRS so velocity is computed correctly)
+  const z = await updateZTraj(sessionId, crs, currentCRS);
+
+  // 5. Apply law impact if a law fired
+  if (pre.lawId) {
+    const impact: LawImpact | null = await getLawImpact(pre.lawId);
+    if (impact) {
+      crs = applyLawImpact(crs, impact);
+    }
+  }
+
+  // 6. Governor mode from updated z_traj
+  const mode = getGovernorMode(z);
+
+  // 7. Apply governor correction
+  const corrected = applyGovernorCorrection(crs, z, mode);
+
+  // 8. Detect slow drip
+  const slowDrip = detectSlowDrip(z);
+
+  // 9. Compute governor effort
+  const effort = governorEffort(crs, corrected);
+
+  const m_after = Math.min(corrected.c, corrected.r, corrected.s);
+
+  // 10. Log governor action to Turso
+  await logGovernorAction({
+    session_id:   sessionId,
+    turn,
+    m_before,
+    m_after,
+    drift_dir:    z.drift_dir,
+    sigma_viol:   z.sigma_viol,
+    intervention: mode !== 'suppress' ? mode : undefined,
+    law_fired:    pre.lawId ?? undefined,
+  });
+
+  // 11. Write PRAXIS receipt
+  const receipt_id = `pr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const receipt: PRAXISReceipt = {
+    receipt_id,
+    session_id:      sessionId,
+    turn,
+    pre_eval_label:  pre.label,
+    m_before,
+    m_after,
+    governor_mode:   mode,
+    intervention:    mode !== 'suppress' ? 1 : 0,
+    slow_drip:       slowDrip ? 1 : 0,
+    governor_effort: effort,
+    sigma_viol:      z.sigma_viol,
+  };
+
+  const db = getClient();
+  if (db) {
+    try {
+      await db.execute({
+        sql: `INSERT OR IGNORE INTO praxis_receipts
+                (receipt_id, session_id, turn, pre_eval_label, m_before, m_after,
+                 governor_mode, intervention, slow_drip, governor_effort, sigma_viol)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          receipt_id, sessionId, turn, pre.label, m_before, m_after,
+          mode, receipt.intervention, receipt.slow_drip, effort, z.sigma_viol,
+        ],
+      });
+    } catch { /* ignore */ }
+  }
+
+  // blocked = HIGH threat AND corrected M at or below floor
+  const blocked = pre.label === 'HIGH' && m_after <= TAU_FLOOR;
+
+  return {
+    receipt,
+    finalCRS:     corrected,
+    blocked,
+    governedText: blocked
+      ? 'I cannot comply with this request as it conflicts with my constitutional principles.'
+      : null,
+    z,
+  };
+}
+
+// ── Deprecated stub ───────────────────────────────────────────────────────────
+
+export async function runPraxis(_prompt: string, _session_id: string): Promise<never> {
+  throw new Error('runPraxis is deprecated — use runPRAXIS');
+}
+
+export type PraxisResult = PRAXISResult;

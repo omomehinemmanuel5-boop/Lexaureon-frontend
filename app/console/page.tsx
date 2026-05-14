@@ -5,92 +5,12 @@ import Link from 'next/link';
 import SignalPillBar from '@/components/SignalPillBar';
 
 import UpgradeModal from '@/components/UpgradeModal';
-import HealthBand from '@/components/HealthBand';
 import DynamicSimplex from '@/components/DynamicSimplex';
-import AgentPipeline from '@/components/AgentPipeline';
 import EmailCapture from '@/components/EmailCapture';
 import { GovernanceResponse } from '@/types';
 
 const MAX_CALLS = 10;
 type Tab = 'governed' | 'raw' | 'analysis' | 'audit';
-
-/* ── Simplex Visualization (mine - better for mobile) ─────── */
-function Simplex({ c, r, s, m, intervention, pulse }: {
-  c: number; r: number; s: number; m: number;
-  intervention: boolean; pulse: boolean;
-}) {
-  const W = 300, H = 240;
-  const top   = { x: W/2, y: 18 };
-  const left  = { x: 18,  y: H-18 };
-  const right  = { x: W-18, y: H-18 };
-  const px = top.x*c + left.x*r + right.x*s;
-  const py = top.y*c + left.y*r + right.y*s;
-  const tau = 0.08; const off = tau * 95;
-  const safe = m >= tau;
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 220 }}>
-      <defs>
-        <radialGradient id="sg2" cx="50%" cy="55%">
-          <stop offset="0%" stopColor="#0f2744" stopOpacity="0.7"/>
-          <stop offset="100%" stopColor="#020617" stopOpacity="0.2"/>
-        </radialGradient>
-        <radialGradient id="dg2" cx="50%" cy="50%">
-          <stop offset="0%" stopColor={safe ? '#f59e0b' : '#ef4444'} stopOpacity="0.7"/>
-          <stop offset="100%" stopColor={safe ? '#f59e0b' : '#ef4444'} stopOpacity="0"/>
-        </radialGradient>
-        <filter id="gf2"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      </defs>
-
-      {/* Background triangle */}
-      <polygon points={`${top.x},${top.y} ${left.x},${left.y} ${right.x},${right.y}`}
-        fill="url(#sg2)" stroke="rgba(100,116,139,0.35)" strokeWidth="1.5"/>
-
-      {/* Safe zone */}
-      <polygon points={`${top.x},${top.y+off*1.2} ${left.x+off},${left.y-off*0.5} ${right.x-off},${right.y-off*0.5}`}
-        fill="rgba(59,130,246,0.07)" stroke="rgba(59,130,246,0.35)" strokeWidth="1" strokeDasharray="4,3"/>
-
-      {/* Grid lines */}
-      {[[top,left],[top,right],[left,right]].map(([a,b],i) => (
-        <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="rgba(51,65,85,0.3)" strokeWidth="0.5"/>
-      ))}
-
-      {/* Intervention trajectory */}
-      {intervention && (
-        <line x1={W/2} y1={H/2} x2={px} y2={py}
-          stroke="rgba(239,68,68,0.5)" strokeWidth="1.5" strokeDasharray="4,2"/>
-      )}
-
-      {/* Vertices */}
-      <circle cx={top.x} cy={top.y} r="6" fill="#3b82f6" filter="url(#gf2)"/>
-      <circle cx={left.x} cy={left.y} r="6" fill="#10b981" filter="url(#gf2)"/>
-      <circle cx={right.x} cy={right.y} r="6" fill="#f59e0b" filter="url(#gf2)"/>
-
-      {/* State glow */}
-      <circle cx={px} cy={py} r="22" fill="url(#dg2)" opacity="0.5"/>
-
-      {/* State dot */}
-      <circle cx={px} cy={py} r={intervention ? 11 : 9}
-        fill={safe ? '#f59e0b' : '#ef4444'} filter="url(#gf2)" opacity="0.95"
-        className={pulse ? 'animate-pulse' : ''}/>
-      <circle cx={px} cy={py} r="4.5" fill="white" opacity="0.95"/>
-
-      {/* Labels */}
-      <text x={top.x} y={top.y-9} textAnchor="middle" fill="#93c5fd" fontSize="13" fontWeight="700">C</text>
-      <text x={top.x} y={top.y+2} textAnchor="middle" fill="#475569" fontSize="7">Continuity</text>
-      <text x={left.x} y={left.y+15} textAnchor="middle" fill="#6ee7b7" fontSize="13" fontWeight="700">R</text>
-      <text x={left.x+26} y={left.y+15} textAnchor="middle" fill="#475569" fontSize="7">Reciprocity</text>
-      <text x={right.x} y={right.y+15} textAnchor="middle" fill="#fcd34d" fontSize="13" fontWeight="700">S</text>
-      <text x={right.x-26} y={right.y+15} textAnchor="middle" fill="#475569" fontSize="7">Sovereignty</text>
-      <text x={px} y={py-15} textAnchor="middle" fill={safe?'#f59e0b':'#ef4444'} fontSize="9" fontWeight="700">
-        M={( m*100).toFixed(0)}%
-      </text>
-      <text x={W/2} y={H-3} textAnchor="middle" fill="#1e293b" fontSize="7">
-        C+R+S=1 · τ=8%
-      </text>
-    </svg>
-  );
-}
 
 /* ── Metric Bar ───────────────────────────────────────────── */
 function MBar({ label, value, color, sub }: { label: string; value: number; color: string; sub: string }) {
@@ -155,7 +75,7 @@ export default function Console() {
   const [showEmail, setShowEmail] = useState(false);
   const [healthBand, setHealthBand] = useState('OPTIMAL');
   const [totalRuns, setTotalRuns] = useState<number|null>(null);
-  const [pipelineResult, setPipelineResult] = useState<Record<string,unknown> | undefined>(undefined);
+  const [pipelineResult, setPipelineResult] = useState<string | undefined>(undefined);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -199,28 +119,14 @@ export default function Console() {
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
       setRes(data); setApiCalls(p => p+1); setTab('governed');
-      setPipelineRunning(false);
       if (data.metrics?.health_band) setHealthBand(data.metrics.health_band);
       if (totalRuns !== null) setTotalRuns(t => t !== null ? t + 1 : null);
-      setPipelineResult({
-        c: data.metrics?.c, r: data.metrics?.r, s: data.metrics?.s, m: data.metrics?.m,
-        intervention: data.intervention?.triggered || data.intervention?.applied,
-        reason: data.intervention?.reason,
-        health_band: data.metrics?.health_band,
-        audit_id: data.audit_id,
-        lyapunov_V: data.kernel?.lyapunov_V,
-        delta_V: data.kernel?.delta_V,
-        semantic_signal: data.kernel?.semantic_signal,
-        cbf_triggered: data.kernel?.cbf_triggered,
-        projection_magnitude: data.kernel?.projection_magnitude,
-        adv_gain: data.kernel?.adv_gain,
-      });
+      setPipelineResult(data.governed_output);
       setPulse(true); setTimeout(() => setPulse(false), 2500);
       // Removed auto-scroll — keeps input accessible for next run on mobile
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Execution failed');
-      setPipelineRunning(false);
-    } finally { setLoading(false); }
+    } finally { setLoading(false); setPipelineRunning(false); }
   };
 
   const m = res?.metrics;

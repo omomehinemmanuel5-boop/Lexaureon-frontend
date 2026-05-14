@@ -1,9 +1,13 @@
 /**
  * Vercel KV persistence layer for Lex Aureon
  * Falls back gracefully to in-memory if KV not configured
+ *
+ * Also contains Turso-backed z_traj governor state functions.
  */
 
-interface CRSState {
+import { getClient } from './db';
+
+interface KvCRSState {
   C: number; R: number; S: number;
   theta?: number;
   attack_pressure?: number;
@@ -46,7 +50,7 @@ async function kvSet(key: string, value: string, ex?: number): Promise<void> {
   if (hasKV()) {
     try {
       const { kv } = await import('@vercel/kv');
-      ex ? await kv.set(key, value, { ex }) : await kv.set(key, value);
+      if (ex) { await kv.set(key, value, { ex }); } else { await kv.set(key, value); }
       return;
     } catch { /* fall through */ }
   }
@@ -79,15 +83,15 @@ async function kvLRange(key: string, start: number, end: number): Promise<string
   return list.slice(start, end + 1);
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ── Public API (Vercel KV) ────────────────────────────────────────────────────
 
-export async function getSessionState(sid: string): Promise<CRSState | null> {
+export async function getSessionState(sid: string): Promise<KvCRSState | null> {
   const raw = await kvGet(`s:${sid}:state`);
   if (!raw) return null;
   try { return JSON.parse(raw); } catch { return null; }
 }
 
-export async function saveSessionState(sid: string, state: CRSState): Promise<void> {
+export async function saveSessionState(sid: string, state: KvCRSState): Promise<void> {
   await kvSet(`s:${sid}:state`, JSON.stringify({ ...state, timestamp: Date.now() }), 86400);
 }
 
@@ -127,4 +131,249 @@ export async function getTotalRuns(): Promise<number> {
     } catch { /* fall through */ }
   }
   return parseInt(mem.get('stats:runs') ?? '1247');
+}
+
+// ── Z-Traj Governor Constants ─────────────────────────────────────────────────
+
+export const TAU_FLOOR       = 0.05;
+export const TAU_RECOVERY    = 0.15;
+export const N_MIN           = 3;
+export const RECOVERY_RATE   = 0.02;
+export const SIGMA_WINDOW    = 10;
+export const SIGMA_THRESHOLD = 0.25;
+
+// ── Z-Traj Governor Types ─────────────────────────────────────────────────────
+
+export interface CRS {
+  c: number;
+  r: number;
+  s: number;
+}
+
+export interface ZTraj {
+  session_id: string;
+  velocity:   number;
+  n_stable:   number;
+  drift_dir:  string;
+  sigma_viol: number;
+  last_m:     number;
+  last_c:     number;
+  last_r:     number;
+  last_s:     number;
+  updated_at: string;
+}
+
+export interface LawImpact {
+  law_id:      string;
+  impact_c:    number;
+  impact_r:    number;
+  impact_s:    number;
+  magnitude:   number;
+  description: string | undefined;
+}
+
+export type GovernorMode = 'suppress' | 'nudge' | 'correction' | 'recovery';
+
+// ── In-memory ZTraj fallback ──────────────────────────────────────────────────
+
+const memZTraj = new Map<string, ZTraj>();
+
+// ── Simplex helpers ───────────────────────────────────────────────────────────
+
+function projectToSimplex(c: number, r: number, s: number): CRS {
+  const sum = c + r + s;
+  if (sum <= 0) return { c: 1 / 3, r: 1 / 3, s: 1 / 3 };
+  return { c: c / sum, r: r / sum, s: s / sum };
+}
+
+// ── Z-Traj Functions ──────────────────────────────────────────────────────────
+
+export async function getZTraj(sessionId: string): Promise<ZTraj | null> {
+  const db = getClient();
+  if (db) {
+    try {
+      const res = await db.execute({
+        sql: 'SELECT * FROM z_traj WHERE session_id = ?',
+        args: [sessionId],
+      });
+      if (res.rows.length > 0) {
+        const row = res.rows[0];
+        return {
+          session_id: row.session_id as string,
+          velocity:   row.velocity   as number,
+          n_stable:   row.n_stable   as number,
+          drift_dir:  row.drift_dir  as string,
+          sigma_viol: row.sigma_viol as number,
+          last_m:     row.last_m     as number,
+          last_c:     row.last_c     as number,
+          last_r:     row.last_r     as number,
+          last_s:     row.last_s     as number,
+          updated_at: row.updated_at as string,
+        };
+      }
+    } catch { /* fall through */ }
+  }
+  return memZTraj.get(sessionId) ?? null;
+}
+
+export async function updateZTraj(sessionId: string, crs: CRS, prevCRS: CRS | null): Promise<ZTraj> {
+  const M = Math.min(crs.c, crs.r, crs.s);
+  const existing = await getZTraj(sessionId);
+
+  // Velocity: L2 distance from previous CRS
+  const velocity = prevCRS
+    ? Math.sqrt((crs.c - prevCRS.c) ** 2 + (crs.r - prevCRS.r) ** 2 + (crs.s - prevCRS.s) ** 2)
+    : 0;
+
+  // n_stable: count of consecutive low-velocity turns
+  const n_stable = velocity < 0.02 ? (existing?.n_stable ?? 0) + 1 : 0;
+
+  // drift_dir: dominant dimension of change
+  let drift_dir = 'none';
+  if (prevCRS) {
+    const dc = crs.c - prevCRS.c;
+    const dr = crs.r - prevCRS.r;
+    const ds = crs.s - prevCRS.s;
+    const adC = Math.abs(dc), adR = Math.abs(dr), adS = Math.abs(ds);
+    if (adC > adR && adC > adS && adC > 0.005) {
+      drift_dir = dc < 0 ? 'away_C' : 'toward_C';
+    } else if (adR > adS && adR > 0.005) {
+      drift_dir = dr < 0 ? 'away_R' : 'toward_R';
+    } else if (adS > 0.005) {
+      drift_dir = ds < 0 ? 'away_S' : 'toward_S';
+    }
+  }
+
+  // sigma_viol: rolling exponential average of floor violations
+  const viol = M < TAU_FLOOR ? (TAU_FLOOR - M) : 0;
+  const prevSigma = existing?.sigma_viol ?? 0;
+  const sigma_viol = prevSigma * ((SIGMA_WINDOW - 1) / SIGMA_WINDOW) + viol / SIGMA_WINDOW;
+
+  const z: ZTraj = {
+    session_id: sessionId,
+    velocity,
+    n_stable,
+    drift_dir,
+    sigma_viol,
+    last_m:     M,
+    last_c:     crs.c,
+    last_r:     crs.r,
+    last_s:     crs.s,
+    updated_at: new Date().toISOString(),
+  };
+
+  const db = getClient();
+  if (db) {
+    try {
+      await db.execute({
+        sql: `INSERT INTO z_traj
+                (session_id, velocity, n_stable, drift_dir, sigma_viol, last_m, last_c, last_r, last_s, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(session_id) DO UPDATE SET
+                velocity=excluded.velocity, n_stable=excluded.n_stable,
+                drift_dir=excluded.drift_dir, sigma_viol=excluded.sigma_viol,
+                last_m=excluded.last_m, last_c=excluded.last_c,
+                last_r=excluded.last_r, last_s=excluded.last_s,
+                updated_at=excluded.updated_at`,
+        args: [sessionId, z.velocity, z.n_stable, z.drift_dir, z.sigma_viol,
+               z.last_m, z.last_c, z.last_r, z.last_s, z.updated_at],
+      });
+    } catch { /* fall through to in-memory */ }
+  }
+  memZTraj.set(sessionId, z);
+  return z;
+}
+
+export async function resetZTraj(sessionId: string): Promise<void> {
+  memZTraj.delete(sessionId);
+  const db = getClient();
+  if (!db) return;
+  try {
+    await db.execute({ sql: 'DELETE FROM z_traj WHERE session_id = ?', args: [sessionId] });
+  } catch { /* ignore */ }
+}
+
+export async function getLawImpact(lawId: string): Promise<LawImpact | null> {
+  const db = getClient();
+  if (db) {
+    try {
+      const res = await db.execute({
+        sql: 'SELECT * FROM law_impact WHERE law_id = ?',
+        args: [lawId],
+      });
+      if (res.rows.length > 0) {
+        const row = res.rows[0];
+        return {
+          law_id:      row.law_id      as string,
+          impact_c:    row.impact_c    as number,
+          impact_r:    row.impact_r    as number,
+          impact_s:    row.impact_s    as number,
+          magnitude:   row.magnitude   as number,
+          description: row.description as string | undefined,
+        };
+      }
+    } catch { /* fall through */ }
+  }
+  return null;
+}
+
+export function applyLawImpact(crs: CRS, impact: LawImpact): CRS {
+  return projectToSimplex(
+    Math.max(0, crs.c + impact.impact_c),
+    Math.max(0, crs.r + impact.impact_r),
+    Math.max(0, crs.s + impact.impact_s),
+  );
+}
+
+export function applyRecovery(crs: CRS): CRS {
+  const minVal = Math.min(crs.c, crs.r, crs.s);
+  const maxVal = Math.max(crs.c, crs.r, crs.s);
+  const minKey = crs.c === minVal ? 'c' : crs.r === minVal ? 'r' : 's';
+  const maxKey = crs.c === maxVal ? 'c' : crs.r === maxVal ? 'r' : 's';
+  const adjusted = { ...crs };
+  (adjusted as Record<string, number>)[minKey] += RECOVERY_RATE;
+  if (minKey !== maxKey) {
+    (adjusted as Record<string, number>)[maxKey] -= RECOVERY_RATE;
+  }
+  return projectToSimplex(Math.max(0, adjusted.c), Math.max(0, adjusted.r), Math.max(0, adjusted.s));
+}
+
+export function getGovernorMode(z: ZTraj): GovernorMode {
+  const M = z.last_m;
+  if (M > TAU_RECOVERY && z.n_stable >= N_MIN) return 'suppress';
+  if (M <= TAU_FLOOR) return 'correction';
+  if (M > TAU_FLOOR && M <= TAU_RECOVERY && z.velocity > 0.05) return 'nudge';
+  return 'recovery';
+}
+
+export function detectSlowDrip(z: ZTraj): boolean {
+  return z.sigma_viol > SIGMA_THRESHOLD;
+}
+
+export async function logGovernorAction(params: {
+  session_id:    string;
+  turn:          number;
+  m_before:      number;
+  m_after:       number;
+  drift_dir:     string;
+  sigma_viol:    number;
+  intervention?: string;
+  law_fired?:    string;
+}): Promise<void> {
+  const db = getClient();
+  if (!db) return;
+  try {
+    await db.execute({
+      sql: `INSERT INTO governor_log
+              (session_id, turn, m_before, m_after, drift_dir, sigma_viol, intervention, law_fired)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        params.session_id, params.turn,
+        params.m_before, params.m_after,
+        params.drift_dir, params.sigma_viol,
+        params.intervention ?? null,
+        params.law_fired    ?? null,
+      ],
+    });
+  } catch { /* ignore */ }
 }

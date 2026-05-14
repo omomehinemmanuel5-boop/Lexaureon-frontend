@@ -1,17 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
-interface AuditRecord {
+interface Receipt {
   id: string;
-  timestamp: number;
+  session_id: string;
+  turn: number;
+  pre_eval_label: string;
   m_before: number;
   m_after: number;
-  health_band?: string;
+  governor_mode: string;
   intervention: boolean;
-  reason?: string;
-  pre_eval_label?: string;
-  sigma_viol?: number;
+  slow_drip: boolean;
+  governor_effort: number;
+  sigma_viol: number;
+  timestamp: number;
 }
 
 function timeAgo(ts: number): string {
@@ -38,37 +41,38 @@ function SkeletonCard() {
 }
 
 export default function GovernanceFeed() {
-  const [events, setEvents] = useState<AuditRecord[]>([]);
+  const [events, setEvents] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [newestId, setNewestId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch('/api/audits/recent?limit=8', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = await res.json() as { audits?: AuditRecord[] };
-        const audits = data.audits ?? [];
-        if (audits.length > 0) {
-          setNewestId(prev => {
-            const freshId = audits[0]?.id ?? null;
-            if (prev !== null && freshId !== prev) {
-              // a truly new event arrived
-            }
-            return freshId;
-          });
-          setEvents(audits);
-        }
-        setLoading(false);
-      } catch {
-        setLoading(false);
+  const load = useCallback(async (manual = false) => {
+    if (manual) setRefreshing(true);
+    try {
+      const res = await fetch('/api/audits/recent?limit=8', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json() as { receipts?: Receipt[] };
+      const receipts = data.receipts ?? [];
+      if (receipts.length > 0) {
+        setNewestId(prev => {
+          const freshId = receipts[0]?.id ?? null;
+          return prev !== freshId ? freshId : prev;
+        });
+        setEvents(receipts);
       }
-    };
-
-    load();
-    const t = setInterval(load, 8000);
-    return () => clearInterval(t);
+    } catch {
+      // silently fail — keep existing events
+    } finally {
+      setLoading(false);
+      if (manual) setRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(() => load(), 8000);
+    return () => clearInterval(t);
+  }, [load]);
 
   if (loading) {
     return (
@@ -86,18 +90,39 @@ export default function GovernanceFeed() {
 
   if (events.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/6 bg-[#0a0a0f] p-10 flex flex-col items-center gap-3">
+      <div className="rounded-2xl border border-white/6 bg-[#0a0a0f] p-10 flex flex-col items-center gap-4">
         <div className="flex items-center gap-1.5">
           {[0, 300, 600].map((delay, i) => (
             <span
               key={i}
-              className="w-2 h-2 rounded-full bg-slate-600 animate-pulse"
+              className="w-2 h-2 rounded-full bg-slate-700 animate-pulse"
               style={{ animationDelay: `${delay}ms` }}
             />
           ))}
         </div>
-        <p className="text-sm text-slate-500 font-mono">Waiting for governance events...</p>
-        <p className="text-xs text-slate-700 font-mono">Run the console to generate real receipts</p>
+        <div className="text-center">
+          <p className="text-sm text-slate-400 font-mono mb-1">No governance events yet</p>
+          <p className="text-xs text-slate-600 font-mono">
+            Run a prompt in the Console to generate your first receipt
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <a
+            href="/console"
+            className="text-xs font-bold px-4 py-2 rounded-lg transition-all hover:opacity-80 font-mono"
+            style={{ background: '#c9a84c', color: '#07070d' }}
+          >
+            ⚡ Open Console →
+          </a>
+          <button
+            onClick={() => load(true)}
+            disabled={refreshing}
+            className="text-xs px-3 py-2 rounded-lg border font-mono transition-all hover:opacity-80 disabled:opacity-40"
+            style={{ borderColor: 'rgba(255,255,255,0.1)', color: '#64748b' }}
+          >
+            {refreshing ? '↻ ...' : '↻ Refresh'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -111,30 +136,40 @@ export default function GovernanceFeed() {
           <span className="text-xs font-semibold text-slate-300">Live Governance Feed</span>
           <span className="text-xs text-slate-600 font-mono">— real events</span>
         </div>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900/20 border border-emerald-800/40 text-emerald-400 font-mono">
-          LIVE
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => load(true)}
+            disabled={refreshing}
+            className="text-xs px-2 py-0.5 rounded font-mono border transition-all hover:opacity-80 disabled:opacity-40"
+            style={{ borderColor: 'rgba(255,255,255,0.08)', color: '#64748b' }}
+            title="Refresh feed"
+          >
+            {refreshing ? '↻ ...' : '↻'}
+          </button>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900/20 border border-emerald-800/40 text-emerald-400 font-mono">
+            LIVE
+          </span>
+        </div>
       </div>
 
       {/* Events */}
       <div className="divide-y divide-white/4 max-h-80 overflow-hidden">
         {events.map((event, i) => {
-          const preEval =
-            event.pre_eval_label ??
-            (event.intervention || event.m_before < 0.1 ? 'HIGH' : 'CLEAR');
+          const preEval = event.pre_eval_label || (event.intervention || event.m_before < 0.1 ? 'HIGH' : 'CLEAR');
           const M = event.m_after;
           const mColor = M > 0.15 ? '#22c55e' : M > 0.05 ? '#f59e0b' : '#ef4444';
           const mPct = Math.min(100, Math.round(M * 100));
-          const slowDrip = (event.sigma_viol ?? 0) > 0.25;
           const isNewest = i === 0 && event.id === newestId;
 
           return (
-            <div
+            <a
               key={event.id}
-              className="px-4 py-3 transition-all duration-500"
+              href={`/audit/${event.id}`}
+              className="block px-4 py-3 transition-all duration-500 hover:bg-white/[0.02] cursor-pointer"
               style={{
                 opacity: Math.max(0.3, 1 - i * 0.09),
                 background: isNewest ? 'rgba(255,255,255,0.015)' : undefined,
+                textDecoration: 'none',
               }}
             >
               {/* Badges row */}
@@ -153,7 +188,7 @@ export default function GovernanceFeed() {
                     INTERVENED
                   </span>
                 )}
-                {slowDrip && (
+                {event.slow_drip && (
                   <span className="text-xs px-2 py-0.5 rounded font-mono text-orange-400 bg-orange-900/20 border border-orange-800/40">
                     ⚠ SLOW-DRIP
                   </span>
@@ -173,14 +208,14 @@ export default function GovernanceFeed() {
                 </div>
               </div>
 
-              {/* Receipt + timestamp */}
+              {/* Receipt ID + timestamp */}
               <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-slate-600 truncate" style={{ maxWidth: 130 }}>
+                <span className="text-xs font-mono truncate" style={{ color: '#c9a84c', maxWidth: 130 }}>
                   {event.id.length > 14 ? `${event.id.slice(0, 14)}…` : event.id}
                 </span>
                 <span className="text-xs font-mono text-slate-700">{timeAgo(event.timestamp)}</span>
               </div>
-            </div>
+            </a>
           );
         })}
       </div>

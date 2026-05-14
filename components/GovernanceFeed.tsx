@@ -56,7 +56,7 @@ export default function GovernanceFeed() {
       if (receipts.length > 0) {
         setNewestId(prev => {
           const freshId = receipts[0]?.id ?? null;
-          return prev === null ? freshId : freshId;
+          return prev !== freshId ? freshId : prev;
         });
         setEvents(receipts);
       }

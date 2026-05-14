@@ -16,15 +16,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 interface AuditEntry {
   id: string;
   session_id: string;
+  turn: number;
   timestamp: number;
   m_before: number;
   m_after: number;
-  health: string;
+  pre_eval_label: string;
+  governor_mode: string;
   intervention: boolean;
-  reason: string;
-  input_hash: string;
-  governed_hash: string;
-  health_band: string;
+  slow_drip: boolean;
+  governor_effort: number;
+  sigma_viol: number;
 }
 
 type AuditResult =
@@ -32,36 +33,41 @@ type AuditResult =
   | { ok: false; reason: 'not_found' }
   | { ok: false; reason: 'db_error'; message: string };
 
+function deriveHealthBand(m: number): string {
+  if (m > 0.15) return 'OPTIMAL';
+  if (m > 0.08) return 'STABLE';
+  if (m > 0.03) return 'FRAGILE';
+  return 'CRITICAL';
+}
+
 async function getAuditEntry(id: string): Promise<AuditResult> {
   const db = getClient();
   if (!db) return { ok: false, reason: 'db_error', message: 'No database client available' };
   try {
-    await db.execute({
-      sql: `CREATE TABLE IF NOT EXISTS audit_log (
-        id TEXT PRIMARY KEY, session_id TEXT, timestamp INTEGER,
-        m_before REAL, m_after REAL, health TEXT, intervention INTEGER DEFAULT 0,
-        reason TEXT, input_hash TEXT, governed_hash TEXT, health_band TEXT,
-        created_at INTEGER DEFAULT (unixepoch())
-      )`,
-      args: [],
+    const r = await db.execute({
+      sql: `SELECT receipt_id, session_id, turn, pre_eval_label,
+                   m_before, m_after, governor_mode, intervention,
+                   slow_drip, governor_effort, sigma_viol, created_at
+            FROM praxis_receipts WHERE receipt_id = ?`,
+      args: [id],
     });
-    const r = await db.execute({ sql: 'SELECT * FROM audit_log WHERE id = ?', args: [id] });
     if (!r.rows.length) return { ok: false, reason: 'not_found' };
     const row = r.rows[0];
     return {
       ok: true,
       entry: {
-        id: row.id as string,
+        id: row.receipt_id as string,
         session_id: row.session_id as string,
-        timestamp: row.timestamp as number,
+        turn: row.turn as number,
+        timestamp: new Date(row.created_at as string).getTime(),
         m_before: row.m_before as number,
         m_after: row.m_after as number,
-        health: row.health as string,
+        pre_eval_label: (row.pre_eval_label as string) || 'CLEAR',
+        governor_mode: (row.governor_mode as string) || 'N/A',
         intervention: (row.intervention as number) === 1,
-        reason: row.reason as string,
-        input_hash: row.input_hash as string,
-        governed_hash: row.governed_hash as string,
-        health_band: row.health_band as string,
+        slow_drip: (row.slow_drip as number) === 1,
+        governor_effort: row.governor_effort as number,
+        sigma_viol: row.sigma_viol as number,
       },
     };
   } catch (e) {
@@ -147,6 +153,7 @@ export default async function AuditPage({ params }: Props) {
           {/* ── Legal Document Card ───────────────────── */}
           {result.ok && (() => {
             const entry = result.entry;
+            const healthBand = deriveHealthBand(entry.m_after);
             return (
               <div
                 className="print-doc rounded-2xl overflow-hidden"
@@ -201,7 +208,7 @@ export default async function AuditPage({ params }: Props) {
                     {[
                       { label: 'M Score (Before)', value: `${((entry.m_before ?? 0) * 100).toFixed(1)}%`, sub: 'Pre-governance stability', ok: entry.m_before > 0.08 },
                       { label: 'M Score (After)', value: `${((entry.m_after ?? 0) * 100).toFixed(1)}%`, sub: 'Post-governance stability', ok: entry.m_after > 0.08 },
-                      { label: 'Health Band', value: entry.health_band ?? 'N/A', sub: 'Constitutional classification', ok: entry.health_band === 'OPTIMAL' || entry.health_band === 'STABLE' },
+                      { label: 'Health Band', value: healthBand, sub: 'Constitutional classification', ok: healthBand === 'OPTIMAL' || healthBand === 'STABLE' },
                       { label: 'Lyapunov Status', value: entry.m_after >= entry.m_before ? 'STABLE ↑' : 'RECOVERING', sub: 'δV trajectory direction', ok: entry.m_after >= entry.m_before },
                     ].map(({ label, value, sub, ok }) => (
                       <div key={label} className="rounded-lg p-3" style={{ background: '#e8e0cc', border: '1px solid #d4b896' }}>
@@ -234,28 +241,29 @@ export default async function AuditPage({ params }: Props) {
                         {entry.intervention ? 'GOVERNOR INTERVENED' : 'CLEAN PASS — NO INTERVENTION'}
                       </span>
                     </div>
-                    {entry.reason && (
-                      <div className="text-xs font-mono mt-2" style={{ color: '#78350f' }}>
-                        Reason: {entry.reason}
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs font-mono" style={{ color: '#78350f' }}>
+                      <span>Mode: {entry.governor_mode}</span>
+                      <span>Effort: {((entry.governor_effort ?? 0) * 100).toFixed(1)}%</span>
+                      {entry.slow_drip && <span style={{ color: '#b45309' }}>⚠ Slow-drip detected</span>}
+                    </div>
                   </div>
                 </div>
 
                 {/* Gold rule */}
                 <div className="h-0.5 mx-8" style={{ background: 'linear-gradient(90deg, transparent, #c9a84c, transparent)' }} />
 
-                {/* § III · Cryptographic Proof */}
+                {/* § III · Governance Record */}
                 <div className="px-8 py-5 border-b" style={{ borderColor: '#d4b896' }}>
                   <div className="text-xs font-mono font-bold tracking-widest uppercase mb-3" style={{ color: '#8b6914' }}>
-                    § III · Cryptographic Proof
+                    § III · Governance Record
                   </div>
                   <div className="space-y-2">
                     {[
                       { label: 'Receipt ID', value: entry.id },
-                      { label: 'Input Hash', value: entry.input_hash ?? 'N/A' },
-                      { label: 'Output Hash', value: entry.governed_hash ?? 'N/A' },
                       { label: 'Session', value: entry.session_id ? entry.session_id.slice(0, 28) + (entry.session_id.length > 28 ? '...' : '') : 'N/A' },
+                      { label: 'Turn', value: String(entry.turn ?? 'N/A') },
+                      { label: 'Pre-eval Label', value: entry.pre_eval_label },
+                      { label: 'Sigma Violation', value: entry.sigma_viol != null ? entry.sigma_viol.toFixed(4) : 'N/A' },
                     ].map(({ label, value }) => (
                       <div key={label} className="rounded p-2.5 font-mono text-xs" style={{ background: '#e8e0cc', border: '1px solid #d4b896' }}>
                         <span className="mr-2" style={{ color: '#8b6914' }}>{label}:</span>

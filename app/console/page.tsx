@@ -529,11 +529,11 @@ export default function Console() {
                         </div>
                       </div>
                       {[
-                        { label: 'audit_id', value: res.audit_id ?? 'N/A', color: '#3b82f6' },
-                        { label: 'timestamp', value: res.timestamp ? new Date(res.timestamp).toISOString() : 'N/A', color: '#94a3b8' },
-                        { label: 'health', value: m?.health ?? 'N/A', color: m?.health === 'SAFE' ? '#22c55e' : '#ef4444' },
-                        { label: 'governor', value: intervened ? 'INTERVENED' : 'PASSED', color: intervened ? '#f59e0b' : '#22c55e' },
-                      ].map(({ label, value, color }) => (
+                        { label: 'audit_id', value: res.audit_id ?? 'N/A', color: '#c9a84c', href: res.audit_id ? `/audit/${res.audit_id}` : undefined },
+                        { label: 'timestamp', value: res.timestamp ? new Date(res.timestamp).toISOString() : 'N/A', color: '#94a3b8', href: undefined },
+                        { label: 'health', value: m?.health ?? 'N/A', color: m?.health === 'SAFE' ? '#22c55e' : '#ef4444', href: undefined },
+                        { label: 'governor', value: intervened ? 'INTERVENED' : 'PASSED', color: intervened ? '#f59e0b' : '#22c55e', href: undefined },
+                      ].map(({ label, value, color, href }) => (
                         <div key={label}
                           className="rounded p-3"
                           style={{ background: '#020408', border: '1px solid #1a2040' }}
@@ -541,7 +541,19 @@ export default function Console() {
                           <div className="flex items-center gap-2">
                             <span className="text-slate-600">{'>'}</span>
                             <span className="text-slate-500 w-24">{label}:</span>
-                            <span className="break-all" style={{ color }}>{value}</span>
+                            {href ? (
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="break-all underline underline-offset-2 hover:opacity-80 transition-opacity"
+                                style={{ color }}
+                              >
+                                {value}
+                              </a>
+                            ) : (
+                              <span className="break-all" style={{ color }}>{value}</span>
+                            )}
                           </div>
                         </div>
                       ))}

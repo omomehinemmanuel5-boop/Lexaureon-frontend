@@ -129,12 +129,14 @@ export default function GovernanceFeed() {
           const isNewest = i === 0 && event.id === newestId;
 
           return (
-            <div
+            <a
               key={event.id}
-              className="px-4 py-3 transition-all duration-500"
+              href={`/audit/${event.id}`}
+              className="block px-4 py-3 transition-all duration-500 hover:bg-white/[0.02] cursor-pointer"
               style={{
                 opacity: Math.max(0.3, 1 - i * 0.09),
                 background: isNewest ? 'rgba(255,255,255,0.015)' : undefined,
+                textDecoration: 'none',
               }}
             >
               {/* Badges row */}
@@ -173,14 +175,14 @@ export default function GovernanceFeed() {
                 </div>
               </div>
 
-              {/* Receipt + timestamp */}
+              {/* Receipt ID + timestamp */}
               <div className="flex items-center gap-3">
-                <span className="text-xs font-mono text-slate-600 truncate" style={{ maxWidth: 130 }}>
+                <span className="text-xs font-mono truncate" style={{ color: '#c9a84c', maxWidth: 130 }}>
                   {event.id.length > 14 ? `${event.id.slice(0, 14)}…` : event.id}
                 </span>
                 <span className="text-xs font-mono text-slate-700">{timeAgo(event.timestamp)}</span>
               </div>
-            </div>
+            </a>
           );
         })}
       </div>

@@ -378,7 +378,7 @@ export async function getTopInvokedLaws(limit = 5): Promise<{ name: string; coun
   const db = getClient();
   if (!db) return [];
   const result = await db.execute({
-    sql: `SELECT name, pillar, invocation_count as count FROM sovereign_laws 
+    sql: `SELECT name, pillar, invocation_count as count FROM sovereign_laws
           ORDER BY invocation_count DESC LIMIT ?`,
     args: [limit],
   });
@@ -387,4 +387,84 @@ export async function getTopInvokedLaws(limit = 5): Promise<{ name: string; coun
     pillar: String(r.pillar),
     count: Number(r.count),
   }));
+}
+
+// ── Z-Traj Governor Migrations ────────────────────────────────────────────────
+
+export async function runZTrajMigrations(): Promise<void> {
+  const db = getClient();
+  if (!db) return;
+
+  const safeExec = async (sql: string, args: (string | number | null)[] = []) => {
+    try { await db.execute({ sql, args }); } catch { /* idempotent */ }
+  };
+
+  await safeExec(`CREATE TABLE IF NOT EXISTS z_traj (
+    session_id    TEXT PRIMARY KEY,
+    velocity      REAL    NOT NULL DEFAULT 0.0,
+    n_stable      INTEGER NOT NULL DEFAULT 0,
+    drift_dir     TEXT    NOT NULL DEFAULT 'none',
+    sigma_viol    REAL    NOT NULL DEFAULT 0.0,
+    last_m        REAL    NOT NULL DEFAULT 0.333,
+    last_c        REAL    NOT NULL DEFAULT 0.333,
+    last_r        REAL    NOT NULL DEFAULT 0.333,
+    last_s        REAL    NOT NULL DEFAULT 0.333,
+    updated_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  await safeExec(`CREATE TABLE IF NOT EXISTS law_impact (
+    law_id        TEXT PRIMARY KEY,
+    impact_c      REAL NOT NULL DEFAULT 0.0,
+    impact_r      REAL NOT NULL DEFAULT 0.0,
+    impact_s      REAL NOT NULL DEFAULT 0.0,
+    magnitude     REAL NOT NULL DEFAULT 0.05,
+    description   TEXT
+  )`);
+
+  await safeExec(`CREATE TABLE IF NOT EXISTS governor_log (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id    TEXT    NOT NULL,
+    turn          INTEGER NOT NULL DEFAULT 0,
+    m_before      REAL,
+    m_after       REAL,
+    drift_dir     TEXT,
+    sigma_viol    REAL,
+    intervention  TEXT,
+    law_fired     TEXT,
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  await safeExec(`CREATE TABLE IF NOT EXISTS praxis_receipts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    receipt_id      TEXT    NOT NULL UNIQUE,
+    session_id      TEXT    NOT NULL,
+    turn            INTEGER NOT NULL DEFAULT 0,
+    pre_eval_label  TEXT    NOT NULL DEFAULT 'CLEAR',
+    m_before        REAL    NOT NULL DEFAULT 0.333,
+    m_after         REAL    NOT NULL DEFAULT 0.333,
+    governor_mode   TEXT    NOT NULL DEFAULT 'suppress',
+    intervention    INTEGER NOT NULL DEFAULT 0,
+    slow_drip       INTEGER NOT NULL DEFAULT 0,
+    governor_effort REAL    NOT NULL DEFAULT 0.0,
+    sigma_viol      REAL    NOT NULL DEFAULT 0.0,
+    created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_governor_log_session ON governor_log(session_id)`);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_receipts_session ON praxis_receipts(session_id)`);
+  await safeExec(`CREATE INDEX IF NOT EXISTS idx_z_traj_updated ON z_traj(updated_at)`);
+
+  const lawSeed = [
+    ['bypass_attempt',   -0.02, -0.02, -0.15, 0.15, 'Direct sovereignty attack'],
+    ['identity_reframe', -0.15, -0.02, -0.02, 0.15, 'Continuity identity attack'],
+    ['sycophancy',       -0.02, -0.15, -0.02, 0.15, 'Reciprocity manipulation'],
+    ['multi_attack',     -0.08, -0.08, -0.08, 0.20, 'Multi-pillar simultaneous attack'],
+    ['slow_drip',        -0.03, -0.03, -0.03, 0.05, 'Low-level cumulative pressure'],
+  ];
+  for (const [id, ic, ir, is_, mag, desc] of lawSeed) {
+    await safeExec(
+      `INSERT OR IGNORE INTO law_impact (law_id, impact_c, impact_r, impact_s, magnitude, description) VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, ic, ir, is_, mag, desc]
+    );
+  }
 }

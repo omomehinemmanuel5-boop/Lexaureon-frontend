@@ -1,0 +1,1 @@
+Read the last 5 git commits. Identify the most significant change. Write a LinkedIn post about it in Emmanuel's voice — confident, technical, concise, ending with lexaureon.com. Save it to posts/draft.md and print it.

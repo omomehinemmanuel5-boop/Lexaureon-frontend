@@ -13,8 +13,14 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
+          cache: 'npm'
       - run: npm ci
       - run: npm run build
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL || 'libsql://placeholder.turso.io' }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN || 'placeholder' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'sk-ant-placeholder' }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'placeholder' }}
       - name: Post PR comment on success
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v6

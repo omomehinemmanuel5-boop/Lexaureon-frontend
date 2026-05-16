@@ -454,6 +454,10 @@ export async function runZTrajMigrations(): Promise<void> {
   await safeExec(`CREATE INDEX IF NOT EXISTS idx_receipts_session ON praxis_receipts(session_id)`);
   await safeExec(`CREATE INDEX IF NOT EXISTS idx_z_traj_updated ON z_traj(updated_at)`);
 
+  // Additive migrations — safe to re-run, safeExec swallows "column already exists"
+  await safeExec(`ALTER TABLE z_traj ADD COLUMN attack_pressure REAL NOT NULL DEFAULT 0.0`);
+  await safeExec(`ALTER TABLE praxis_receipts ADD COLUMN crs_method TEXT`);
+
   const lawSeed = [
     ['bypass_attempt',   -0.02, -0.02, -0.15, 0.15, 'Direct sovereignty attack'],
     ['identity_reframe', -0.15, -0.02, -0.02, 0.15, 'Continuity identity attack'],

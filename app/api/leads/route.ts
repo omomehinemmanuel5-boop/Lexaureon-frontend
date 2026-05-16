@@ -47,8 +47,24 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
-  // Simple token auth
-  // URL-based access — /admin page handles UI security
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) return new NextResponse('Admin not configured', { status: 503 });
+
+  const auth = req.headers.get('authorization');
+  let authorized = false;
+  if (auth?.startsWith('Basic ')) {
+    try {
+      const decoded = atob(auth.slice(6));
+      const password = decoded.slice(decoded.indexOf(':') + 1);
+      if (password === adminPassword) authorized = true;
+    } catch { /* malformed base64 */ }
+  }
+  if (!authorized) {
+    return new NextResponse('Unauthorized', {
+      status: 401,
+      headers: { 'WWW-Authenticate': 'Basic realm="Lex Aureon Admin"' },
+    });
+  }
 
   try {
     const db = getClient();

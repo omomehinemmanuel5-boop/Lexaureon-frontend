@@ -1,1 +1,6 @@
-Read the latest changes to lib/praxis.ts, lib/kv.ts, and app/api/lex/run/route.ts. Identify what has changed since the last paper version. Suggest specific additions or updates to the Aureonics paper sections. Save suggestions to research/paper-updates.md.
+Read recent changes to lib/praxis.ts and lib/kv.ts.
+Read research/open-problems.md.
+Identify what changed since last paper version.
+Suggest specific additions to Aureonics paper sections.
+Save suggestions to research/paper-updates.md.
+Print the suggestions.

@@ -1,1 +1,8 @@
-Read CLAUDE.md and the Aureonics paper summary. Take the grant question provided as input. Write a tailored, specific answer in Emmanuel's voice using the Aureonics framework as evidence.
+Read AGENTS.md and research/open-problems.md.
+Take the grant question as input.
+Write a tailored specific answer using:
+- Aureonics framework as evidence
+- Live system as proof of concept
+- Published paper as credibility
+- Emmanuel's independent researcher story
+Write in Emmanuel's voice. Be specific not vague.

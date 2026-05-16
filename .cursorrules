@@ -1,0 +1,16 @@
+You are working on Lex Aureon — a constitutional
+AI governance system built by Emmanuel King from
+Lagos, Nigeria.
+
+Read AGENTS.md first. It contains everything.
+
+Core rules:
+- Never modify constitutional math
+- Always preserve C+R+S=1
+- Always run npm run build before committing
+- All Turso queries in lib/kv.ts only
+- All governor logic in lib/praxis.ts only
+- Update AGENTS.md changelog after every change
+- Human authority is always final
+- Security over convenience always
+- Transparency over performance always

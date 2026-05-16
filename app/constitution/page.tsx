@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export const metadata: Metadata = {
   title: 'Lex Aureon — Constitution v1.0',
@@ -95,7 +96,7 @@ export default function ConstitutionPage() {
         style={{ background: 'rgba(7,7,13,0.9)' }}>
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Lex Aureon" className="w-8 h-8 rounded-lg object-cover" />
+            <Image src="/logo.png" alt="Lex Aureon" width={32} height={32} className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-bold text-white text-sm">Lex Aureon</span>
           </Link>
           <div className="flex items-center gap-4">

@@ -3,7 +3,7 @@ import { runPRAXIS } from '@/lib/praxis';
 import { runZTrajMigrations } from '@/lib/db';
 import { validateAndConsumeKey } from '@/lib/api_keys';
 import { GeneratorAgent } from '@/lib/agents/generator';
-import { TAU_FLOOR, TAU_RECOVERY, CRS } from '@/lib/kv';
+import { TAU_FLOOR, TAU_RECOVERY, CRS, getZTraj } from '@/lib/kv';
 
 const CONSTITUTIONAL_SYSTEM_PROMPT =
   'You are Lex Aureon — a Sovereign Constitutional AI operating under the Aureonics framework. ' +
@@ -78,9 +78,20 @@ export async function POST(req: Request) {
       };
     }
 
-    const sessionId:   string = body.session_id;
-    const turn:        number = body.turn ?? 0;
-    const currentCRS:  CRS    = body.crs ?? { c: 0.333, r: 0.333, s: 0.334 };
+    const sessionId: string = body.session_id;
+    const turn:      number = body.turn ?? 0;
+
+    // Read persisted z_traj so constitutional memory survives across sessions.
+    // Only fall back to the neutral simplex centroid when no prior state exists.
+    let currentCRS: CRS;
+    if (body.crs) {
+      currentCRS = body.crs;
+    } else {
+      const prevTraj = await getZTraj(sessionId);
+      currentCRS = prevTraj
+        ? { c: prevTraj.last_c, r: prevTraj.last_r, s: prevTraj.last_s }
+        : { c: 0.333, r: 0.333, s: 0.334 };
+    }
 
     // ── PRAXIS governance ─────────────────────────────────────────────────────
     const praxis = await runPRAXIS({ sessionId, turn, prompt: body.prompt, currentCRS });

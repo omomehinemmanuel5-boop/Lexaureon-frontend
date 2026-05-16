@@ -80,18 +80,22 @@ export default function AgentPipeline({ running, result }: AgentPipelineProps) {
     const timings = [600, 500, 700, 500, 400]; // ms per step
     let elapsed = 0;
 
-    const runStep = (idx: number) => {
-      if (idx >= 5) { setDone(true); return; }
+    const runStep = (stepIdx: number) => {
+      if (stepIdx >= 5) {
+        console.debug(`[AgentPipeline] pipeline completed in ${elapsed}ms`);
+        setDone(true);
+        return;
+      }
 
       // Mark step as running
-      setCurrentStep(idx);
+      setCurrentStep(stepIdx);
       setSteps(s => s.map((step, i) =>
-        i === idx ? { ...step, status: 'running' } : step
+        i === stepIdx ? { ...step, status: 'running' } : step
       ));
 
       // Animate progress bar
-      const start = (idx / 5) * 100;
-      const end = ((idx + 1) / 5) * 100;
+      const start = (stepIdx / 5) * 100;
+      const end = ((stepIdx + 1) / 5) * 100;
       let p = start;
       const tick = setInterval(() => {
         p += 3;
@@ -103,13 +107,14 @@ export default function AgentPipeline({ running, result }: AgentPipelineProps) {
       setTimeout(() => {
         clearInterval(tick);
         setProgress(end);
+        elapsed += timings[stepIdx];
 
         // Build details based on index and result
         let details: string[] = [];
-        if (idx === 0) {
+        if (stepIdx === 0) {
           const tokens = result?.tokens ?? Math.floor(Math.random() * 100 + 80);
           details = [`Draft generated (${tokens} tokens)`, `Model: llama-3.3-70b-versatile`];
-        } else if (idx === 1 && result) {
+        } else if (stepIdx === 1 && result) {
           const dR = ((result.r - 0.333) * 100).toFixed(0);
           details = [
             `C=${result.c.toFixed(2)} | R=${result.r.toFixed(2)} | S=${result.s.toFixed(2)} | M=${result.m.toFixed(2)}`,
@@ -118,7 +123,7 @@ export default function AgentPipeline({ running, result }: AgentPipelineProps) {
               : `All invariants within bounds`,
             result.lyapunov_V !== undefined ? `Lyapunov V = ${result.lyapunov_V.toFixed(5)}` : '',
           ].filter(Boolean);
-        } else if (idx === 2 && result) {
+        } else if (stepIdx === 2 && result) {
           if (result.intervention) {
             details = [
               `Trigger: ${result.semantic_signal?.attack_type !== 'none' ? result.semantic_signal?.attack_type + ' attack' : 'M collapse'}`,
@@ -132,7 +137,7 @@ export default function AgentPipeline({ running, result }: AgentPipelineProps) {
               `Health: ${result.health_band ?? 'OPTIMAL'}`,
             ];
           }
-        } else if (idx === 3 && result) {
+        } else if (stepIdx === 3 && result) {
           if (result.intervention) {
             details = [
               `Constraint: ḣ(x) + α(h(x)) ≥ 0`,
@@ -146,7 +151,7 @@ export default function AgentPipeline({ running, result }: AgentPipelineProps) {
           } else {
             details = [`No intervention — output passes unchanged`, `Constitutional bounds maintained`];
           }
-        } else if (idx === 4 && result) {
+        } else if (stepIdx === 4 && result) {
           const shortId = result.audit_id?.slice(-8).toUpperCase() ?? '??';
           details = [
             `Receipt ID: LEX-${shortId}`,
@@ -157,20 +162,20 @@ export default function AgentPipeline({ running, result }: AgentPipelineProps) {
         }
 
         const finalStatus: AgentStep['status'] =
-          idx === 3 && result?.intervention ? 'intervention'
-          : idx === 3 && !result?.intervention ? 'complete'
+          stepIdx === 3 && result?.intervention ? 'intervention'
+          : stepIdx === 3 && !result?.intervention ? 'complete'
           : 'complete';
 
         setSteps(s => s.map((step, i) =>
-          i === idx ? { ...step, status: finalStatus, details } : step
+          i === stepIdx ? { ...step, status: finalStatus, details } : step
         ));
 
-        if (idx < 4) {
-          setTimeout(() => runStep(idx + 1), 120);
+        if (stepIdx < 4) {
+          setTimeout(() => runStep(stepIdx + 1), 120);
         } else {
           setDone(true);
         }
-      }, timings[idx]);
+      }, timings[stepIdx]);
     };
 
     runStep(0);
@@ -220,7 +225,7 @@ export default function AgentPipeline({ running, result }: AgentPipelineProps) {
 
       {/* Steps */}
       <div className="p-4 space-y-3 font-mono text-xs">
-        {steps.map((step, idx) => (
+        {steps.map((step) => (
           <div key={step.id}
             className={`transition-all duration-300 ${
               step.status === 'pending' ? 'opacity-30' : 'opacity-100'

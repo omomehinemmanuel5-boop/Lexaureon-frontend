@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const G = {
   gold:  '#c9a84c',
@@ -25,7 +26,7 @@ export default function LandingNav() {
     >
       <div className="max-w-6xl mx-auto px-5 py-3.5 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-          <img src="/logo.png" alt="Lex Aureon" className="w-8 h-8 rounded-lg object-cover" />
+          <Image src="/logo.png" alt="Lex Aureon" width={32} height={32} className="w-8 h-8 rounded-lg object-cover" />
           <div>
             <div className="text-sm font-bold text-white leading-none">Lex Aureon</div>
             <div

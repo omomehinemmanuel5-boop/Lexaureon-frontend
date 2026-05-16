@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import PricingSection from '@/components/PricingSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import SimplexVisualizer from '@/components/SimplexVisualizer';
@@ -710,7 +711,7 @@ function Footer() {
           <div className="flex flex-col sm:flex-row justify-between gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2.5 mb-3">
-                <img src="/logo.png" alt="Lex Aureon" className="w-8 h-8 rounded-lg object-cover" />
+                <Image src="/logo.png" alt="Lex Aureon" width={32} height={32} className="w-8 h-8 rounded-lg object-cover" />
                 <span className="font-bold text-white">Lex Aureon</span>
               </div>
               <p className="text-xs text-slate-600 max-w-xs leading-relaxed">

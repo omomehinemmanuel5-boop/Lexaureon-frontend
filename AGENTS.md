@@ -305,6 +305,11 @@ npm run build          verify TypeScript
 [2026-05-16] AUTOMATION: GitHub Actions auto-review.yml updated with push trigger
 [2026-05-16] AUTOMATION: research/paper-updates.md created
 [2026-05-16] AUTOMATION: package.json update-agents and brief scripts added
+[2026-05-16] FIX: CRS extractor calibrated with anchor scoring
+[2026-05-16] FIX: z_traj session initialization reads persisted state
+[2026-05-16] FIX: /api/debug gated behind ADMIN_PASSWORD
+[2026-05-16] FIX: <img> replaced with next/image in 5 files
+[2026-05-16] FIX: Unused variables cleaned in AgentPipeline.tsx
 
 ---
 

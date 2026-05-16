@@ -151,16 +151,17 @@ export interface CRS {
 }
 
 export interface ZTraj {
-  session_id: string;
-  velocity:   number;
-  n_stable:   number;
-  drift_dir:  string;
-  sigma_viol: number;
-  last_m:     number;
-  last_c:     number;
-  last_r:     number;
-  last_s:     number;
-  updated_at: string;
+  session_id:      string;
+  velocity:        number;
+  n_stable:        number;
+  drift_dir:       string;
+  sigma_viol:      number;
+  last_m:          number;
+  last_c:          number;
+  last_r:          number;
+  last_s:          number;
+  attack_pressure: number;
+  updated_at:      string;
 }
 
 export interface LawImpact {
@@ -199,16 +200,17 @@ export async function getZTraj(sessionId: string): Promise<ZTraj | null> {
       if (res.rows.length > 0) {
         const row = res.rows[0];
         return {
-          session_id: row.session_id as string,
-          velocity:   row.velocity   as number,
-          n_stable:   row.n_stable   as number,
-          drift_dir:  row.drift_dir  as string,
-          sigma_viol: row.sigma_viol as number,
-          last_m:     row.last_m     as number,
-          last_c:     row.last_c     as number,
-          last_r:     row.last_r     as number,
-          last_s:     row.last_s     as number,
-          updated_at: row.updated_at as string,
+          session_id:      row.session_id      as string,
+          velocity:        row.velocity        as number,
+          n_stable:        row.n_stable        as number,
+          drift_dir:       row.drift_dir       as string,
+          sigma_viol:      row.sigma_viol      as number,
+          last_m:          row.last_m          as number,
+          last_c:          row.last_c          as number,
+          last_r:          row.last_r          as number,
+          last_s:          row.last_s          as number,
+          attack_pressure: typeof row.attack_pressure === 'number' ? row.attack_pressure : 0,
+          updated_at:      row.updated_at      as string,
         };
       }
     } catch { /* fall through */ }
@@ -216,7 +218,12 @@ export async function getZTraj(sessionId: string): Promise<ZTraj | null> {
   return memZTraj.get(sessionId) ?? null;
 }
 
-export async function updateZTraj(sessionId: string, crs: CRS, prevCRS: CRS | null): Promise<ZTraj> {
+export async function updateZTraj(
+  sessionId: string,
+  crs: CRS,
+  prevCRS: CRS | null,
+  attackPressure?: number,
+): Promise<ZTraj> {
   const M = Math.min(crs.c, crs.r, crs.s);
   const existing = await getZTraj(sessionId);
 
@@ -249,17 +256,23 @@ export async function updateZTraj(sessionId: string, crs: CRS, prevCRS: CRS | nu
   const prevSigma = existing?.sigma_viol ?? 0;
   const sigma_viol = prevSigma * ((SIGMA_WINDOW - 1) / SIGMA_WINDOW) + viol / SIGMA_WINDOW;
 
+  // attack_pressure: carry forward unless caller supplies an updated value
+  const attack_pressure = attackPressure !== undefined
+    ? Math.min(1, Math.max(0, attackPressure))
+    : (existing?.attack_pressure ?? 0);
+
   const z: ZTraj = {
-    session_id: sessionId,
+    session_id:      sessionId,
     velocity,
     n_stable,
     drift_dir,
     sigma_viol,
-    last_m:     M,
-    last_c:     crs.c,
-    last_r:     crs.r,
-    last_s:     crs.s,
-    updated_at: new Date().toISOString(),
+    last_m:          M,
+    last_c:          crs.c,
+    last_r:          crs.r,
+    last_s:          crs.s,
+    attack_pressure,
+    updated_at:      new Date().toISOString(),
   };
 
   const db = getClient();
@@ -267,21 +280,38 @@ export async function updateZTraj(sessionId: string, crs: CRS, prevCRS: CRS | nu
     try {
       await db.execute({
         sql: `INSERT INTO z_traj
-                (session_id, velocity, n_stable, drift_dir, sigma_viol, last_m, last_c, last_r, last_s, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (session_id, velocity, n_stable, drift_dir, sigma_viol, last_m, last_c, last_r, last_s, attack_pressure, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               ON CONFLICT(session_id) DO UPDATE SET
                 velocity=excluded.velocity, n_stable=excluded.n_stable,
                 drift_dir=excluded.drift_dir, sigma_viol=excluded.sigma_viol,
                 last_m=excluded.last_m, last_c=excluded.last_c,
                 last_r=excluded.last_r, last_s=excluded.last_s,
+                attack_pressure=excluded.attack_pressure,
                 updated_at=excluded.updated_at`,
         args: [sessionId, z.velocity, z.n_stable, z.drift_dir, z.sigma_viol,
-               z.last_m, z.last_c, z.last_r, z.last_s, z.updated_at],
+               z.last_m, z.last_c, z.last_r, z.last_s, z.attack_pressure, z.updated_at],
       });
     } catch { /* fall through to in-memory */ }
   }
   memZTraj.set(sessionId, z);
   return z;
+}
+
+// ── Session turn counter ──────────────────────────────────────────────────────
+
+export async function getSessionTurn(sessionId: string): Promise<number> {
+  const db = getClient();
+  if (!db) return 0;
+  try {
+    const r = await db.execute({
+      sql: 'SELECT COUNT(*) as cnt FROM praxis_receipts WHERE session_id = ?',
+      args: [sessionId],
+    });
+    return Number(r.rows[0]?.cnt ?? 0);
+  } catch {
+    return 0;
+  }
 }
 
 export async function resetZTraj(sessionId: string): Promise<void> {

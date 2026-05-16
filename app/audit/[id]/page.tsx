@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getClient } from '@/lib/db';
 import PrintButton from '@/components/PrintButton';
 
@@ -97,7 +98,7 @@ export default async function AuditPage({ params }: Props) {
       >
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Lex Aureon" className="w-7 h-7 rounded-lg object-cover" />
+            <Image src="/logo.png" alt="Lex Aureon" width={28} height={28} className="w-7 h-7 rounded-lg object-cover" />
             <span className="font-bold text-white text-sm">Lex Aureon</span>
           </Link>
           <div className="flex items-center gap-3">

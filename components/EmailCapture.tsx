@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface EmailCaptureProps {
   onComplete: (email: string) => void;
@@ -40,7 +41,7 @@ export default function EmailCapture({ onComplete }: EmailCaptureProps) {
 
         {/* Logo */}
         <div className="flex justify-center mb-5">
-          <img src="/logo.png" alt="Lex Aureon" className="w-16 h-16 rounded-xl object-cover" />
+          <Image src="/logo.png" alt="Lex Aureon" width={64} height={64} className="w-16 h-16 rounded-xl object-cover" />
         </div>
 
         {/* Gold divider */}

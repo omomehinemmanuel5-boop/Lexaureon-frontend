@@ -1,3 +1,3 @@
 # Content Drafts
-Run `npm run post` to generate a new post from recent commits.
-Drafts are saved here as draft.md before publishing.
+Run npm run post to generate from recent commits.
+Drafts saved as draft.md before publishing.

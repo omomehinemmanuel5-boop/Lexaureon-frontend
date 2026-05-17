@@ -161,20 +161,21 @@ export function applyDelta(crs: CRS, delta: { dc: number; dr: number; ds: number
 
 // ── applyGovernorCorrection ───────────────────────────────────────────────────
 
-export function applyGovernorCorrection(crs: CRS, _z: ZTraj, mode: GovernorMode): CRS {
+export function applyGovernorCorrection(crs: CRS, _z: ZTraj, mode: GovernorMode, tauFloor?: number): CRS {
   if (mode === 'suppress') return crs;
 
   const scale   = mode === 'nudge' ? 0.4 : 1.0;
   const k0      = 0.3;
   const epsilon = 0.01;
   const w_i     = 1 / 3;
+  const tau     = tauFloor ?? TAU_FLOOR;
   const M       = Math.min(crs.c, crs.r, crs.s);
 
   const k = k0 * w_i / (M + epsilon);
 
-  const phi_c   = Math.max(0, TAU_FLOOR - crs.c);
-  const phi_r   = Math.max(0, TAU_FLOOR - crs.r);
-  const phi_s   = Math.max(0, TAU_FLOOR - crs.s);
+  const phi_c   = Math.max(0, tau - crs.c);
+  const phi_r   = Math.max(0, tau - crs.r);
+  const phi_s   = Math.max(0, tau - crs.s);
   const phi_bar = (phi_c + phi_r + phi_s) / 3;
 
   const G_c = k * (phi_c - phi_bar) * scale;
@@ -207,6 +208,9 @@ export async function runPRAXIS(input: PRAXISInput): Promise<PRAXISResult> {
   // 1. Pre-eval
   const pre = preEval(prompt);
 
+  // HIGH detection raises the effective floor so intervention fires at M ≤ 0.10 not just M ≤ 0.05
+  const effective_tau = (pre.label === 'HIGH') ? TAU_FLOOR + 0.05 : TAU_FLOOR;
+
   // 2. Semantic transducer delta
   const delta = semanticTransducer(prompt, pre);
 
@@ -224,11 +228,11 @@ export async function runPRAXIS(input: PRAXISInput): Promise<PRAXISResult> {
     }
   }
 
-  // 6. Governor mode from updated z_traj
-  const mode = getGovernorMode(z);
+  // 6. Governor mode from updated z_traj (effective_tau raised when pre_eval is HIGH)
+  const mode = getGovernorMode(z, effective_tau);
 
   // 7. Apply governor correction
-  const corrected = applyGovernorCorrection(crs, z, mode);
+  const corrected = applyGovernorCorrection(crs, z, mode, effective_tau);
 
   // 8. Detect slow drip
   const slowDrip = detectSlowDrip(z);
@@ -282,8 +286,8 @@ export async function runPRAXIS(input: PRAXISInput): Promise<PRAXISResult> {
     } catch { /* ignore */ }
   }
 
-  // blocked = HIGH threat AND corrected M at or below floor
-  const blocked = pre.label === 'HIGH' && m_after <= TAU_FLOOR;
+  // blocked = HIGH threat AND corrected M at or below effective floor (0.10 when HIGH, 0.05 when CLEAR)
+  const blocked = pre.label === 'HIGH' && m_after <= effective_tau;
 
   return {
     receipt,

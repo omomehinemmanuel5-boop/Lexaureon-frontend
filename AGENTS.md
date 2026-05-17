@@ -310,6 +310,12 @@ npm run build          verify TypeScript
 [2026-05-16] FIX: /api/debug gated behind ADMIN_PASSWORD
 [2026-05-16] FIX: <img> replaced with next/image in 5 files
 [2026-05-16] FIX: Unused variables cleaned in AgentPipeline.tsx
+[2026-05-16] FIX: Governor boundary < corrected to <= (getGovernorMode in kv.ts)
+[2026-05-16] FIX: Pre-Eval HIGH now lowers effective tau to 0.10 — intervention fires earlier
+[2026-05-16] FIX: Extractor pillar mapping added for attack types (identity reframe → C low, bypass → S low, sycophancy → R low)
+[2026-05-16] FIX: Extractor calibration anchors reinforced in Groq scoring prompt
+[2026-05-16] FIX: z_traj session reads persisted state from Turso (already live in route.ts)
+[2026-05-16] FIX: img replaced with next/image in 6 files (already live)
 
 ---
 

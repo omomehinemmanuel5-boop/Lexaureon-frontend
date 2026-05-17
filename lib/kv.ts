@@ -368,11 +368,12 @@ export function applyRecovery(crs: CRS): CRS {
   return projectToSimplex(Math.max(0, adjusted.c), Math.max(0, adjusted.r), Math.max(0, adjusted.s));
 }
 
-export function getGovernorMode(z: ZTraj): GovernorMode {
-  const M = z.last_m;
+export function getGovernorMode(z: ZTraj, tauFloor?: number): GovernorMode {
+  const M   = z.last_m;
+  const tau = tauFloor ?? TAU_FLOOR;
   if (M > TAU_RECOVERY && z.n_stable >= N_MIN) return 'suppress';
-  if (M <= TAU_FLOOR) return 'correction';
-  if (M > TAU_FLOOR && M <= TAU_RECOVERY && z.velocity > 0.05) return 'nudge';
+  if (M <= tau) return 'correction';
+  if (tau < M && M <= TAU_RECOVERY && z.velocity > 0.05) return 'nudge';
   return 'recovery';
 }
 
